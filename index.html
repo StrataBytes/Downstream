@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DownStream</title>
+    <link rel="stylesheet" href="index.css">
+
+</head>
+
+<body>
+    <div class="container">
+        <h1>DownStream</h1>
+        <div class="input-section">
+            <input type="text" placeholder="YouTube Link" id="youtube-link">
+            <select id="quality">
+                <option value="highest">Highest</option>
+                <option value="high">High (1080p)</option>
+                <option value="medium">Medium (720p)</option>
+                <option value="low">Low (480p)</option>
+            </select>
+            <select id="format">
+                <option value="mp4">MP4</option>
+                <!-- <option value="mp3">MP3</option> -->
+            </select>
+            <button id="add-to-queue">ADD</button>
+        </div>
+        <table class="queue-table">
+            <thead>
+                <tr>
+                    <th>Video Title</th>
+                    <th>Quality</th>
+                    <th>Format</th>
+                    <th>Progress</th>
+                </tr>
+            </thead>
+            <tbody id="queue-list">
+                <!--queue items here-->
+            </tbody>
+        </table>
+        <div class="download-button">
+            <div class="download-button">
+                <button id="download-all">Download</button>
+                <button id="clear-queue">Clear Queue</button>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+
+</body>
+
+</html>
