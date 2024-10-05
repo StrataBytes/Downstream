@@ -2,7 +2,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)  
 **Author:** Stratabytes
 
-**Thanks to:** davidhurtado2000 for helping a lot in development.
+**Thanks to:** davidhurtado2000 for helping in development.
 
 ## Introduction
 
