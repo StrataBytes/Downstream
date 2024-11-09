@@ -53,21 +53,12 @@ To get started with DownStream, you'll need the following installed:
     npm start
     ```
 
-4. To build the app for production and create platform-specific installers:
+4. To build the app as EXE:
     ```bash
-    npm run make
+    npm run build:win
     ```
-   The installer files will be available in the `/out` folder.
+   The installer files will be available in the `/dist` folder.
    
-
-
-### Build for Windows
-
-1. Install dependencies and set up the app as shown above.
-2. Run the build command for a Windows package:
-    ```bash
-    npm run make
-    ```
 
 
 
