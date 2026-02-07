@@ -58,7 +58,7 @@ To get started with DownStream, you'll need the following installed:
    The installer files will be available in the `/dist` folder.
    
 
-## Aknowledgements
+## Acknowledgements
 **Thanks to:** davidhurtado2000 for helping in initial Ver-1.0 development.
 
 ## License
