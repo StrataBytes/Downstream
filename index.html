@@ -10,19 +10,20 @@
 </head>
 
 <body>
+    <div id="background-layer"></div>
     <div class="container">
         <h1>DownStream</h1>
         <div class="input-section">
-            <input type="text" placeholder="YouTube Link" id="youtube-link">
+            <input type="text" placeholder="Video Link" id="youtube-link">
             <select id="quality">
                 <option value="highest">Highest</option>
-                <option value="high">High (1080p)</option>
+                <option value="high" selected>High (1080p)</option>
                 <option value="medium">Medium (720p)</option>
                 <option value="low">Low (480p)</option>
             </select>
             <select id="format">
-                <option value="mp4">MP4</option>
-                <!-- <option value="mp3">MP3</option> -->
+                <option value="mp4" selected>MP4</option>
+                <option value="mp3">MP3</option>
             </select>
             <button id="add-to-queue">ADD</button>
         </div>
@@ -39,13 +40,55 @@
                 <!--queue items here-->
             </tbody>
         </table>
+        <div class="total-progress-container" id="total-progress-container" style="display: none;">
+            <div class="progress-info">
+                <span id="progress-text">Ready</span>
+                <span id="progress-count">0/0</span>
+            </div>
+            <progress id="total-progress" value="0" max="100"></progress>
+        </div>
         <div class="download-button">
-            <div class="download-button">
-                <button id="download-all">Download</button>
-                <button id="clear-queue">Clear Queue</button>
+            <button id="download-all">Download</button>
+            <button id="cancel-download">Cancel</button>
+            <button id="open-downloads">Downloads</button>
+            <button id="clear-queue">Clear Queue</button>
+        </div>
+    </div>
+
+    <!-- Cancel Confirmation Modal -->
+    <div id="cancel-modal" class="modal">
+        <div class="modal-content cancel-modal-content">
+            <h2>Cancel Downloads?</h2>
+            <p>You have <span id="cancel-remaining-count">0</span> downloads remaining. Are you sure you want to cancel?</p>
+            <div class="modal-buttons">
+                <button id="confirm-cancel-btn">Yes, Cancel</button>
+                <button id="dismiss-cancel-btn">No, Continue</button>
             </div>
         </div>
     </div>
+
+    <!-- Playlist Selection Modal -->
+    <div id="playlist-modal" class="modal">
+        <div class="modal-content">
+            <h2>Select Videos from Playlist</h2>
+            <div class="modal-actions">
+                <button id="select-all-btn">Select All</button>
+                <button id="deselect-all-btn">Deselect All</button>
+            </div>
+            <div id="playlist-items" class="playlist-items"></div>
+            <div class="modal-buttons">
+                <button id="add-selected-btn">Add Selected</button>
+                <button id="cancel-modal-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading playlist...</div>
+    </div>
+
     <script src="app.js"></script>
 
 </body>

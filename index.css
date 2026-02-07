@@ -7,18 +7,72 @@ body {
     margin: 0;
     background: linear-gradient(135deg, #141e30, #243b55);
     color: #ffffff;
+    position: relative;
+    overflow: hidden;
+}
+
+#background-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: blur(10px);
+    transform: scale(1.1);
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    z-index: 0;
+}
+
+#background-layer.active {
+    opacity: 1;
+}
+
+#background-layer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
 }
 
 .container {
     text-align: center;
     width: 80%;
     max-width: 600px;
+    max-height: 85vh;
+    overflow-y: auto;
     background-color: rgba(255, 255, 255, 0.1);
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.25);
+    position: relative;
+    z-index: 1;
+}
+
+.container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.container::-webkit-scrollbar-thumb {
+    background: #4cd0c1;
+    border-radius: 4px;
+}
+
+.container::-webkit-scrollbar-thumb:hover {
+    background: #3ba99c;
 }
 
 h1 {
@@ -101,30 +155,34 @@ h1 {
 .download-button {
     display: flex;
     justify-content: center;
-    margin-bottom: 20px;
+    gap: 10px;
+    margin-top: 20px;
 }
 
 .download-button button {
-    background-color: rgba(255, 255, 255, 0.3);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    width: 150px;
-    height: 50px;
-    border-radius: 25px;
+    background-color: #2c3e50;
+    color: #4cd0c1;
+    border: 2px solid #4cd0c1;
+    width: 140px;
+    height: 45px;
+    border-radius: 5px;
     cursor: pointer;
     font-size: 1em;
-    margin: 0 5px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: all 0.3s ease-in-out;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    font-weight: bold;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .download-button button:hover {
-    background-color: rgba(255, 255, 255, 0.5);
-    transform: scale(1.05);
+    background-color: #4cd0c1;
+    color: #2c3e50;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(76, 208, 193, 0.3);
+}
+
+.download-button button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 @keyframes skeleton-loading {
@@ -148,5 +206,255 @@ h1 {
 
 .button-disabled {
     pointer-events: none;
-    opacity: 0.6;
+    opacity: 0.5;
+    filter: grayscale(50%);
+}
+
+.total-progress-container {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    color: #4cd0c1;
+}
+
+#total-progress {
+    width: 100%;
+    height: 25px;
+    -webkit-appearance: none;
+    appearance: none;
+    border-radius: 5px;
+    overflow: hidden;
+    background-color: #2c3e50;
+    border: 1px solid #4cd0c1;
+}
+
+#total-progress::-webkit-progress-bar {
+    background-color: #2c3e50;
+}
+
+#total-progress::-webkit-progress-value {
+    background-color: #4cd0c1;
+    transition: width 0.3s ease;
+}
+
+#total-progress::-moz-progress-bar {
+    background-color: #4cd0c1;
+}
+
+.total-progress-container {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background: linear-gradient(135deg, #1a2634, #2c3e50);
+    margin: 5% auto;
+    padding: 30px;
+    border: 2px solid #4cd0c1;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 600px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.modal-content h2 {
+    color: #4cd0c1;
+    margin-top: 0;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.modal-actions button {
+    flex: 1;
+    background-color: #2c3e50;
+    color: #4cd0c1;
+    border: 1px solid #4cd0c1;
+    padding: 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.15s ease;
+}
+
+.modal-actions button:hover {
+    background-color: #4cd0c1;
+    color: #2c3e50;
+}
+
+.playlist-items {
+    overflow-y: auto;
+    max-height: 40vh;
+    margin-bottom: 20px;
+    border: 1px solid #4cd0c1;
+    border-radius: 5px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.playlist-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    margin-bottom: 8px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 5px;
+    transition: background-color 0.15s ease;
+}
+
+.playlist-item:hover {
+    background-color: rgba(76, 208, 193, 0.1);
+}
+
+.playlist-item input[type="checkbox"] {
+    margin-right: 10px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.playlist-item label {
+    cursor: pointer;
+    flex: 1;
+    color: #ffffff;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: auto;
+}
+
+.modal-buttons button {
+    flex: 1;
+    background-color: #2c3e50;
+    color: #4cd0c1;
+    border: 2px solid #4cd0c1;
+    padding: 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: bold;
+    transition: all 0.15s ease;
+}
+
+.modal-buttons button:hover {
+    background-color: #4cd0c1;
+    color: #2c3e50;
+}
+
+#cancel-modal-btn {
+    background-color: transparent;
+    border-color: #888;
+    color: #888;
+}
+
+#cancel-modal-btn:hover {
+    background-color: #888;
+    color: #2c3e50;
+}
+
+.loading-overlay {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 5px solid rgba(76, 208, 193, 0.3);
+    border-top: 5px solid #4cd0c1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    margin-top: 20px;
+    color: #4cd0c1;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.cancel-modal-content {
+    max-width: 400px;
+    text-align: center;
+}
+
+.cancel-modal-content p {
+    color: #ccc;
+    margin-bottom: 20px;
+    font-size: 1em;
+}
+
+.cancel-modal-content #cancel-remaining-count {
+    color: #4cd0c1;
+    font-weight: bold;
+}
+
+#confirm-cancel-btn {
+    background-color: #c0392b !important;
+    border-color: #c0392b !important;
+    color: white !important;
+}
+
+#confirm-cancel-btn:hover {
+    background-color: #e74c3c !important;
+    border-color: #e74c3c !important;
+}
+
+#dismiss-cancel-btn {
+    background-color: transparent;
+    border-color: #4cd0c1;
+    color: #4cd0c1;
 }

@@ -1,8 +1,6 @@
-# DownStream
+# DownStream v1.1 (Early 2026)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)  
 **Author:** Stratabytes
-
-**Thanks to:** davidhurtado2000 for helping in development.
 
 ## Introduction
 
@@ -60,7 +58,8 @@ To get started with DownStream, you'll need the following installed:
    The installer files will be available in the `/dist` folder.
    
 
-
+## Aknowledgements
+**Thanks to:** davidhurtado2000 for helping in initial Ver-1.0 development.
 
 ## License
 
