@@ -10,18 +10,14 @@
 
 ## Features
 
-- **High-Speed Downloads**: Downloads from YouTube, with planned support for both video and audio formats.
+- **High-Speed Downloads**: Downloads from YouTube, supports exporting as MP4 or MP3.
 - **User-Friendly Interface**: Simple and intuitive UI.
 - **Straight to Folder**: Downloads videos straight to your downloads folder.
+- **Playlist / Radio Support**: Compatible with public playlist or radio links.
 
 ## Download
 
-Simply click on the latest release and download the EXE installer, or scroll down to see manual building steps.
-
-## Future Plans
-
-- **Playlist Support**: Add batch download options for playlists.
-- **MP3 Conversion**: Add MP3 format for videos.
+Simply click on the [latest release](https://github.com/StrataBytes/Downstream/releases/tag/1.1) and download the EXE installer, or scroll down to see manual building steps.
 
 
 ## Building Manually
@@ -53,7 +49,7 @@ To get started with DownStream, you'll need the following installed:
 
 4. To build the app as EXE:
     ```bash
-    npm run build:win
+    npx electron-forge make
     ```
    The installer files will be available in the `/dist` folder.
    
