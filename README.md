@@ -51,7 +51,7 @@ To get started with DownStream, you'll need the following installed:
     ```bash
     npx electron-forge make
     ```
-   The installer files will be available in the `/dist` folder.
+   The installer files will be available in the `/dist` or `/out` folder depending on what method you package it.
    
 
 ## Acknowledgements
