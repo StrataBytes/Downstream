@@ -1,7 +1,7 @@
 {
   "Versions": {
     "2.0.0": {
-      "IsTargetOutdated": true,
+      "IsTargetOutdated": false,
       "OutdatedMessage": "This version of DownStream is out of date. It is strongly recommended to update, as older versions may stop working at any time and are missing new features.",
       "KnownIssues": [
         "",
