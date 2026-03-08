@@ -1,0 +1,34 @@
+.view-transition {
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.view-fade-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+.view-fade-out {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.layout {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 32px;
+}
+
+.primary-widget,
+.queue-widget {
+  background: rgba(15,25,35,0.82);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+}

@@ -1,0 +1,38 @@
+
+.song-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: height 0.2s ease, background 0.2s ease;
+}
+
+.song-progress-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 14px;
+}
+
+.song-progress-bar:hover {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.song-progress-fill {
+  height: 100%;
+  background: #4cd0c1;
+  border-radius: 0 1px 1px 0;
+  transition: background 0.2s ease;
+  pointer-events: none;
+}
+
+.song-progress-bar:hover .song-progress-fill {
+  background: #5ee8d8;
+}

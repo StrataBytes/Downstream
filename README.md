@@ -1,23 +1,26 @@
-# DownStream v1.1 (Early 2026)
+# DownStream v2.0 (Early 2026)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)  
 **Author:** Stratabytes
 
 ## Introduction
 
-**DownStream** is a youtube downloader built with Electron. It allows users to download videos and audio (coming soon). It uses libraries like `FFmpeg` and `YouTube-dl` for fast and reliable downloads.
+**DownStream** is a media toolkit built with Electron. It combines a YouTube downloader with a local music player, all in one lightweight desktop app. It uses libraries like `FFmpeg` and `yt-dlp` for fast and reliable downloads.
 > **Note:** The app is designed for legal use cases. Please respect copyright laws and platform terms of service when downloading media.
 
 
 ## Features
 
 - **High-Speed Downloads**: Downloads from YouTube, supports exporting as MP4 or MP3.
-- **User-Friendly Interface**: Simple and intuitive UI.
+- **Music Player**: Play your local music library with a built-in player, EQ mixer with presets, and audio visualizer.
+- **User-Friendly Interface**: Simple and intuitive UI with smooth transitions between modes.
 - **Straight to Folder**: Downloads videos straight to your downloads folder.
 - **Playlist / Radio Support**: Compatible with public playlist or radio links.
+- **Saved Folders**: Save and switch between multiple music library folders.
+- **Auto-Update Checks**: Notifies you on the home screen when a new version is available.
 
 ## Download
 
-Simply click on the [latest release](https://github.com/StrataBytes/Downstream/releases/tag/1.1) and download the EXE installer, or scroll down to see manual building steps.
+Simply click on the [latest release](https://github.com/StrataBytes/Downstream/releases/latest) and download the EXE installer, or scroll down to see manual building steps.
 
 
 ## Building Manually
@@ -55,7 +58,7 @@ To get started with DownStream, you'll need the following installed:
    
 
 ## Acknowledgements
-**Thanks to:** davidhurtado2000 for helping in initial Ver-1.0 development.
+**Thanks to:** davidhurtado2000 for helping in initial pre-version 1.0 development.
 
 ## License
 

@@ -1,23 +1,38 @@
-if (require('electron-squirrel-startup')) process.exit(0);
-
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, protocol, net } = require('electron');
 const path = require('path');
+const { spawn } = require('child_process');
+
+const squirrelCommand = process.argv[1];
+if (squirrelCommand) {
+    const appFolder = path.resolve(process.execPath, '..');
+    const updateExe = path.resolve(appFolder, '..', 'Update.exe');
+    const exeName = path.basename(process.execPath);
+    if (squirrelCommand === '--squirrel-install' || squirrelCommand === '--squirrel-updated') {
+        spawn(updateExe, ['--createShortcut', exeName], { detached: true });
+        app.quit();
+    } else if (squirrelCommand === '--squirrel-uninstall') {
+        spawn(updateExe, ['--removeShortcut', exeName], { detached: true });
+        app.quit();
+    } else if (squirrelCommand === '--squirrel-obsolete') {
+        app.quit();
+    }
+}
+
+const fs = require('fs');
 const ytdl = require('ytdl-core');
 
 function getFFmpegPath() {
-    let ffmpegPath = require('ffmpeg-static');
     if (app.isPackaged) {
-        ffmpegPath = ffmpegPath.replace('app.asar', 'app.asar.unpacked');
+        return path.join(process.resourcesPath, 'ffmpeg.exe');
     }
-    return ffmpegPath;
+    return path.join(__dirname, '..', '..', 'node_modules', 'ffmpeg-static', 'ffmpeg.exe');
 }
 
 function getYtDlpPath() {
-    let ytDlpPath = path.join(__dirname, 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp.exe');
     if (app.isPackaged) {
-        ytDlpPath = ytDlpPath.replace('app.asar', 'app.asar.unpacked');
+        return path.join(process.resourcesPath, 'yt-dlp.exe');
     }
-    return ytDlpPath;
+    return path.join(__dirname, '..', '..', 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp.exe');
 }
 
 const ffmpegPath = getFFmpegPath();
@@ -32,22 +47,70 @@ let mainWindow;
 
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 800,
-        height: 600,
-        minWidth: 600,
-        minHeight: 400,
-        icon: path.join(__dirname, 'epic.ico'),
+        width: 1200,
+        height: 750,
+        minWidth: 900,
+        minHeight: 500,
+        icon: path.join(__dirname, '..', '..', 'epic.ico'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
         },
     });
-    mainWindow.loadFile('index.html');
+
+    if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+        mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    } else {
+        mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+    }
+
     mainWindow.setMenuBarVisibility(false);
 }
 
+protocol.registerSchemesAsPrivileged([
+    { scheme: 'media', privileges: { stream: true, supportFetchAPI: true, corsEnabled: true } },
+]);
+
 app.whenReady().then(() => {
+    protocol.handle('media', (request) => {
+        const filePath = decodeURIComponent(request.url.slice('media:///'.length));
+        const stat = fs.statSync(filePath);
+        const fileSize = stat.size;
+        const rangeHeader = request.headers.get('range');
+
+        if (rangeHeader) {
+            const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+            if (match) {
+                const start = parseInt(match[1], 10);
+                const end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
+                const length = end - start + 1;
+                const buf = Buffer.alloc(length);
+                const fd = fs.openSync(filePath, 'r');
+                fs.readSync(fd, buf, 0, length, start);
+                fs.closeSync(fd);
+                return new Response(buf, {
+                    status: 206,
+                    headers: {
+                        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                        'Accept-Ranges': 'bytes',
+                        'Content-Length': String(length),
+                        'Content-Type': 'audio/mpeg',
+                    },
+                });
+            }
+        }
+
+        return new Response(fs.readFileSync(filePath), {
+            status: 200,
+            headers: {
+                'Accept-Ranges': 'bytes',
+                'Content-Length': String(fileSize),
+                'Content-Type': 'audio/mpeg',
+            },
+        });
+    });
+
     createWindow();
     app.on('activate', function () {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -77,7 +140,7 @@ function getFormatString(quality, format) {
     if (format === 'mp3') {
         return 'bestaudio/best';
     }
-    
+
     switch (quality) {
         case 'high':
             return 'bestvideo[vcodec^=avc]+bestaudio/best[vcodec^=avc]/bestvideo+bestaudio/best';
@@ -133,7 +196,7 @@ ipcMain.handle('download-video', async (event, { url, quality, format }) => {
         }
 
         console.log(`Starting download for: ${cleanUrl}`);
-        
+
         let progressValue = 10;
         const progressInterval = setInterval(() => {
             if (progressValue < 90) {
@@ -141,13 +204,13 @@ ipcMain.handle('download-video', async (event, { url, quality, format }) => {
                 event.sender.send('download-progress', { url, progress: progressValue });
             }
         }, 1000);
-        
+
         const result = await withRetry(async () => {
             return await ytDlpExec(cleanUrl, ytDlpOptions);
         }, 3, 3000);
-        
+
         clearInterval(progressInterval);
-        
+
         event.sender.send('download-progress', { url, progress: 100 });
         event.sender.send('download-complete', { url, success: true });
         event.sender.send('conversion-complete', { url, success: true });
@@ -160,7 +223,7 @@ ipcMain.handle('download-video', async (event, { url, quality, format }) => {
     }
 });
 
-ipcMain.handle('get-video-title', async (event, url) => {
+ipcMain.handle('get-video-info', async (event, url) => {
     try {
         const cleanUrl = cleanYouTubeUrl(url);
         const info = await withRetry(async () => {
@@ -172,40 +235,34 @@ ipcMain.handle('get-video-title', async (event, url) => {
                 skipDownload: true,
             });
         }, 2, 2000);
-        return info.title || 'Unknown Title';
+
+        let thumbnail = info.thumbnail || null;
+        if (!thumbnail && info.thumbnails && info.thumbnails.length > 0) {
+            thumbnail = info.thumbnails[info.thumbnails.length - 1].url;
+        }
+
+        return {
+            title: info.title || 'Unknown Title',
+            thumbnail,
+            uploader: info.uploader || info.channel || 'Unknown',
+            uploadDate: info.upload_date || null,
+            duration: info.duration || null,
+        };
     } catch (error) {
-        console.error(`Error fetching video title for ${url}: ${error.message}`);
+        console.error(`Error fetching video info for ${url}: ${error.message}`);
         try {
             const info = await ytdl.getBasicInfo(cleanYouTubeUrl(url));
-            return info.videoDetails.title;
+            return {
+                title: info.videoDetails.title || 'Unknown Title',
+                thumbnail: info.videoDetails.thumbnails?.[info.videoDetails.thumbnails.length - 1]?.url || null,
+                uploader: info.videoDetails.author?.name || 'Unknown',
+                uploadDate: info.videoDetails.publishDate || null,
+                duration: parseInt(info.videoDetails.lengthSeconds) || null,
+            };
         } catch (fallbackError) {
             console.error(`Fallback also failed: ${fallbackError.message}`);
-            return 'Unknown Title - Check URL';
+            return { title: 'Unknown Title - Check URL', thumbnail: null, uploader: 'Unknown', uploadDate: null, duration: null };
         }
-    }
-});
-
-ipcMain.handle('get-video-thumbnail', async (event, url) => {
-    try {
-        const cleanUrl = cleanYouTubeUrl(url);
-        const info = await withRetry(async () => {
-            return await ytDlpExec(cleanUrl, {
-                dumpSingleJson: true,
-                noWarnings: true,
-                noCallHome: true,
-                noCheckCertificate: true,
-                skipDownload: true,
-            });
-        }, 2, 2000);
-        if (info.thumbnail) {
-            return info.thumbnail;
-        } else if (info.thumbnails && info.thumbnails.length > 0) {
-            return info.thumbnails[info.thumbnails.length - 1].url;
-        }
-        return null;
-    } catch (error) {
-        console.error(`Error fetching video thumbnail for ${url}: ${error.message}`);
-        return null;
     }
 });
 
@@ -249,6 +306,57 @@ ipcMain.handle('get-playlist-info', async (event, url) => {
 ipcMain.handle('open-downloads-folder', async () => {
     const downloadsPath = app.getPath('downloads');
     shell.openPath(downloadsPath);
+});
+
+ipcMain.handle('select-music-folder', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory'],
+        title: 'Select Music Folder',
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
+});
+
+ipcMain.handle('read-music-folder', async (_event, folderPath) => {
+    try {
+        const entries = fs.readdirSync(folderPath, { withFileTypes: true });
+        const mp3Files = entries
+            .filter((e) => e.isFile() && /\.mp3$/i.test(e.name))
+            .map((e) => ({
+                name: e.name.replace(/\.mp3$/i, ''),
+                path: path.join(folderPath, e.name),
+            }));
+        return mp3Files;
+    } catch (err) {
+        console.error('Error reading music folder:', err.message);
+        return [];
+    }
+});
+
+ipcMain.handle('check-version', async () => {
+    try {
+        const appVersion = app.getVersion();
+        const res = await net.fetch('https://raw.githubusercontent.com/StrataBytes/Downstream/refs/heads/main/versionctrl.json');
+        const data = await res.json();
+        const entry = data.Versions?.[appVersion];
+        if (!entry) return { appVersion, status: 'unknown' };
+        return {
+            appVersion,
+            outdated: entry.IsTargetOutdated,
+            message: entry.OutdatedMessage,
+            knownIssues: (entry.KnownIssues || []).filter((s) => s),
+            updateUrl: entry.updateButtonUrl,
+        };
+    } catch (err) {
+        console.error('Version check failed:', err.message);
+        return { appVersion: app.getVersion(), status: 'error' };
+    }
+});
+
+ipcMain.handle('open-external-url', async (_event, url) => {
+    if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
+        await shell.openExternal(url);
+    }
 });
 
 process.on('uncaughtException', (error) => {

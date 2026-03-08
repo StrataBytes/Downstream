@@ -1,0 +1,95 @@
+.disclaimer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(12px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: disclaimerFadeIn 0.3s ease;
+}
+
+@keyframes disclaimerFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.disclaimer-modal {
+  background: linear-gradient(135deg, #1a2634, #243040);
+  border: 1px solid rgba(76,208,193,0.3);
+  border-radius: 16px;
+  padding: 40px 44px;
+  max-width: 520px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  animation: disclaimerSlideUp 0.3s ease;
+}
+
+@keyframes disclaimerSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.disclaimer-icon {
+  color: #f0a050;
+  margin-bottom: 4px;
+}
+
+.disclaimer-title {
+  font-size: 1.25em;
+  font-weight: 700;
+  color: #4cd0c1;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+.disclaimer-text {
+  font-size: 0.88em;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.6;
+  text-align: center;
+}
+
+.disclaimer-buttons {
+  display: flex;
+  gap: 14px;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.disclaimer-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 0.9em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.disclaimer-btn-decline {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.5);
+  border-color: rgba(255,255,255,0.1);
+}
+.disclaimer-btn-decline:hover {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.7);
+  border-color: rgba(255,255,255,0.2);
+}
+
+.disclaimer-btn-accept {
+  background: rgba(76,208,193,0.15);
+  color: #4cd0c1;
+  border-color: rgba(76,208,193,0.4);
+}
+.disclaimer-btn-accept:hover {
+  background: #4cd0c1;
+  color: #0f1923;
+}

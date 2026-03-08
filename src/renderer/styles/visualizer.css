@@ -1,0 +1,12 @@
+
+.audio-visualizer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 160px;
+  width: 100%;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.75;
+}
