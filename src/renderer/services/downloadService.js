@@ -102,11 +102,20 @@ export async function downloadAll() {
       break;
     }
 
-    await window.electronAPI.downloadVideo({
-      url: item.url,
-      quality: item.quality,
-      format: item.format,
-    });
+    try {
+      const result = await window.electronAPI.downloadVideo({
+        url: item.url,
+        quality: item.quality,
+        format: item.format,
+      });
+
+      if (result && !result.success) {
+        useAppStore.getState().updateQueueItem(item.url, { status: 'Error' });
+      }
+    } catch (err) {
+      console.error(`Download failed for ${item.url}:`, err);
+      useAppStore.getState().updateQueueItem(item.url, { status: 'Error' });
+    }
 
     completedVideos++;
     useAppStore.getState().setTotalProgress({

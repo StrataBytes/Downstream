@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getVideoInfo: (url) => ipcRenderer.invoke('get-video-info', url),
     getPlaylistInfo: (url) => ipcRenderer.invoke('get-playlist-info', url),
     openDownloadsFolder: () => ipcRenderer.invoke('open-downloads-folder'),
+    searchVideos: (query) => ipcRenderer.invoke('search-videos', query),
     selectMusicFolder: () => ipcRenderer.invoke('select-music-folder'),
     readMusicFolder: (folderPath) => ipcRenderer.invoke('read-music-folder', folderPath),
     checkVersion: () => ipcRenderer.invoke('check-version'),

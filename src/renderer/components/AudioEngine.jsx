@@ -1,9 +1,11 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect } from 'react';
 import useAppStore from '../stores/useAppStore';
 
 let audioCtx = null;
 let sourceNode = null;
 let eqFilters = [];
+let normGainNode = null;
+let measureAnalyser = null;
 
 const EQ_FREQUENCIES = [31, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
@@ -15,18 +17,18 @@ export default function AudioEngine() {
   const musicCurrent = useAppStore((s) => s.musicCurrent);
   const musicPlaying = useAppStore((s) => s.musicPlaying);
   const musicVolume = useAppStore((s) => s.musicVolume);
-  const musicFiles = useAppStore((s) => s.musicFiles);
   const musicRepeat = useAppStore((s) => s.musicRepeat);
-  const musicShuffle = useAppStore((s) => s.musicShuffle);
+  const musicNormalize = useAppStore((s) => s.musicNormalize);
   const eqBands = useAppStore((s) => s.eqBands);
   const setMusicPlaying = useAppStore((s) => s.setMusicPlaying);
-  const setMusicCurrent = useAppStore((s) => s.setMusicCurrent);
   const setMusicAnalyser = useAppStore((s) => s.setMusicAnalyser);
   const setMusicAudioRef = useAppStore((s) => s.setMusicAudioRef);
+  const playNextTrack = useAppStore((s) => s.playNextTrack);
 
   const audioRef = useRef(null);
   const currentPathRef = useRef(null);
   const fadeTimerRef = useRef(null);
+  const normIntervalRef = useRef(null);
   const targetVolumeRef = useRef(applyVolumeCurve(musicVolume));
 
   useEffect(() => {
@@ -51,6 +53,12 @@ export default function AudioEngine() {
     analyser.fftSize = 2048;
     analyser.smoothingTimeConstant = 0.4;
 
+    measureAnalyser = audioCtx.createAnalyser();
+    measureAnalyser.fftSize = 2048;
+
+    normGainNode = audioCtx.createGain();
+    normGainNode.gain.value = 1.0;
+
     sourceNode = audioCtx.createMediaElementSource(audio);
 
     let prev = sourceNode;
@@ -58,7 +66,9 @@ export default function AudioEngine() {
       prev.connect(filter);
       prev = filter;
     }
-    prev.connect(analyser);
+    prev.connect(measureAnalyser);
+    measureAnalyser.connect(normGainNode);
+    normGainNode.connect(analyser);
     analyser.connect(audioCtx.destination);
 
     setMusicAnalyser(analyser);
@@ -117,22 +127,50 @@ export default function AudioEngine() {
     if (musicPlaying) audio.volume = curved;
   }, [musicVolume]);
 
-  const pickRandom = useCallback((exclude) => {
-    if (musicFiles.length <= 1) return musicFiles[0] || null;
-    const others = musicFiles.filter((f) => f.path !== exclude?.path);
-    return others[Math.floor(Math.random() * others.length)];
-  }, [musicFiles]);
+  useEffect(() => {
+    clearInterval(normIntervalRef.current);
 
-  const handleNext = useCallback(() => {
-    if (musicFiles.length === 0 || !musicCurrent) return;
-    if (musicShuffle) {
-      const next = pickRandom(musicCurrent);
-      if (next) setMusicCurrent(next);
+    if (!musicNormalize || !measureAnalyser || !normGainNode || !musicCurrent) {
+      if (normGainNode) {
+        normGainNode.gain.cancelScheduledValues(audioCtx?.currentTime || 0);
+        normGainNode.gain.value = 1.0;
+      }
       return;
     }
-    const idx = musicFiles.findIndex((f) => f.path === musicCurrent.path);
-    setMusicCurrent(musicFiles[(idx + 1) % musicFiles.length]);
-  }, [musicFiles, musicCurrent, musicShuffle, pickRandom]);
+
+    normGainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+    normGainNode.gain.value = 1.0;
+
+    const targetRMS = 0.125;
+    const rmsValues = [];
+    let count = 0;
+    const maxSamples = 30;
+    const dataArray = new Float32Array(measureAnalyser.fftSize);
+
+    normIntervalRef.current = setInterval(() => {
+      measureAnalyser.getFloatTimeDomainData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i] * dataArray[i];
+      }
+      const rms = Math.sqrt(sum / dataArray.length);
+      const vol = audioRef.current?.volume || 1;
+      if (rms > 0.001 && vol > 0.01) {
+        rmsValues.push(rms / vol);
+      }
+      count++;
+      if (count >= maxSamples) {
+        clearInterval(normIntervalRef.current);
+        if (rmsValues.length > 0) {
+          const avgRMS = rmsValues.reduce((a, b) => a + b, 0) / rmsValues.length;
+          const gain = Math.min(4.0, Math.max(0.25, targetRMS / avgRMS));
+          normGainNode.gain.setTargetAtTime(gain, audioCtx.currentTime, 0.15);
+        }
+      }
+    }, 50);
+
+    return () => clearInterval(normIntervalRef.current);
+  }, [musicCurrent, musicNormalize]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -142,12 +180,12 @@ export default function AudioEngine() {
         audio.currentTime = 0;
         audio.play().catch(() => {});
       } else {
-        handleNext();
+        playNextTrack();
       }
     };
     audio.addEventListener('ended', onEnded);
     return () => audio.removeEventListener('ended', onEnded);
-  }, [handleNext, musicRepeat]);
+  }, [playNextTrack, musicRepeat]);
 
   return <audio ref={audioRef} crossOrigin="anonymous" style={{ display: 'none' }} />;
 }

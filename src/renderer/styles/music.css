@@ -265,6 +265,11 @@
   border-color: rgba(76,208,193,0.4);
   background: rgba(76,208,193,0.08);
 }
+.music-folder-name-active {
+  color: #4cd0c1;
+  border-color: rgba(76,208,193,0.35);
+  background: rgba(76,208,193,0.1);
+}
 
 .btn-select-folder {
   display: flex;

@@ -205,21 +205,30 @@ ipcMain.handle('download-video', async (event, { url, quality, format }) => {
             }
         }, 1000);
 
-        const result = await withRetry(async () => {
-            return await ytDlpExec(cleanUrl, ytDlpOptions);
-        }, 3, 3000);
+        try {
+            const result = await withRetry(async () => {
+                return await ytDlpExec(cleanUrl, ytDlpOptions);
+            }, 3, 3000);
 
-        clearInterval(progressInterval);
+            clearInterval(progressInterval);
 
-        event.sender.send('download-progress', { url, progress: 100 });
-        event.sender.send('download-complete', { url, success: true });
-        event.sender.send('conversion-complete', { url, success: true });
-        console.log(`Download completed for ${cleanUrl}`);
+            event.sender.send('download-progress', { url, progress: 100 });
+            event.sender.send('download-complete', { url, success: true });
+            event.sender.send('conversion-complete', { url, success: true });
+            console.log(`Download completed for ${cleanUrl}`);
+            return { success: true };
+        } catch (dlError) {
+            clearInterval(progressInterval);
+            console.error(`Error downloading ${url}: ${dlError.message}`);
+            event.sender.send('download-error', { url, error: dlError.message });
+            return { success: false, error: dlError.message };
+        }
 
     } catch (error) {
         console.error(`Error downloading ${url}: ${error.message}`);
         console.error('Full error:', error);
         event.sender.send('download-error', { url, error: error.message });
+        return { success: false, error: error.message };
     }
 });
 
@@ -306,6 +315,37 @@ ipcMain.handle('get-playlist-info', async (event, url) => {
 ipcMain.handle('open-downloads-folder', async () => {
     const downloadsPath = app.getPath('downloads');
     shell.openPath(downloadsPath);
+});
+
+ipcMain.handle('search-videos', async (event, query) => {
+    try {
+        const info = await withRetry(async () => {
+            return await ytDlpExec(`ytsearch8:${query}`, {
+                dumpSingleJson: true,
+                flatPlaylist: true,
+                noWarnings: true,
+                skipDownload: true,
+                noCheckCertificate: true,
+            });
+        }, 2, 2000);
+
+        if (!info.entries) return [];
+        return info.entries
+            .filter((e) => e.id)
+            .map((e) => ({
+                url: e.url || `https://www.youtube.com/watch?v=${e.id}`,
+                title: e.title || 'Unknown Title',
+                channel: e.uploader || e.channel || 'Unknown',
+                uploadDate: e.upload_date || null,
+                thumbnail: e.thumbnails?.length
+                    ? e.thumbnails[e.thumbnails.length - 1].url
+                    : `https://i.ytimg.com/vi/${e.id}/hqdefault.jpg`,
+                duration: e.duration || null,
+            }));
+    } catch (error) {
+        console.error('Search failed:', error.message);
+        return [];
+    }
 });
 
 ipcMain.handle('select-music-folder', async () => {

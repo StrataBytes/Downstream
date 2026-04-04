@@ -7,6 +7,7 @@ import AudioVisualizer from './components/AudioVisualizer';
 import AudioEngine from './components/AudioEngine';
 import SongProgressBar from './components/SongProgressBar';
 import DisclaimerModal from './components/DisclaimerModal';
+import MiniPlayer from './components/MiniPlayer';
 import DownloadView from './views/DownloadView';
 import HomeView from './views/HomeView';
 
@@ -68,6 +69,7 @@ export default function App() {
       <SongProgressBar />
       <AudioEngine />
       <AudioVisualizer />
+      <MiniPlayer />
       <div className={`view-transition${fading ? ' view-fade-out' : ' view-fade-in'}`}>
         <ViewContent view={displayed} />
       </div>

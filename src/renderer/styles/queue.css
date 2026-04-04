@@ -163,3 +163,61 @@
   gap: 8px;
   flex-shrink: 0;
 }
+
+.queue-format-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.queue-format-btn {
+  padding: 3px 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.4);
+  font-size: 0.65em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.queue-format-btn:hover {
+  color: #4cd0c1;
+  border-color: rgba(76,208,193,0.4);
+  background: rgba(76,208,193,0.08);
+}
+
+.queue-ctx-menu {
+  position: fixed;
+  z-index: 500;
+  min-width: 140px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(18, 18, 24, 0.95);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  animation: ctxFadeIn 0.12s ease-out;
+}
+
+@keyframes ctxFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.queue-ctx-item {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(255,255,255,0.7);
+  font-size: 0.78em;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.queue-ctx-item:hover {
+  background: rgba(76,208,193,0.12);
+  color: #4cd0c1;
+}

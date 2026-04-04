@@ -1,4 +1,3 @@
-import { useCallback } from 'react';
 import useAppStore from '../stores/useAppStore';
 
 export default function MusicPlayer() {
@@ -9,6 +8,7 @@ export default function MusicPlayer() {
   const musicLibraryOpen = useAppStore((s) => s.musicLibraryOpen);
   const musicShuffle = useAppStore((s) => s.musicShuffle);
   const musicRepeat = useAppStore((s) => s.musicRepeat);
+  const musicNormalize = useAppStore((s) => s.musicNormalize);
   const setMusicFolder = useAppStore((s) => s.setMusicFolder);
   const setMusicFiles = useAppStore((s) => s.setMusicFiles);
   const setMusicCurrent = useAppStore((s) => s.setMusicCurrent);
@@ -16,6 +16,9 @@ export default function MusicPlayer() {
   const setMusicLibraryOpen = useAppStore((s) => s.setMusicLibraryOpen);
   const toggleMusicRepeat = useAppStore((s) => s.toggleMusicRepeat);
   const toggleMusicShuffle = useAppStore((s) => s.toggleMusicShuffle);
+  const toggleMusicNormalize = useAppStore((s) => s.toggleMusicNormalize);
+  const playNextTrack = useAppStore((s) => s.playNextTrack);
+  const playPrevTrack = useAppStore((s) => s.playPrevTrack);
   const musicVolume = useAppStore((s) => s.musicVolume);
   const setMusicVolume = useAppStore((s) => s.setMusicVolume);
   const eqOpen = useAppStore((s) => s.eqOpen);
@@ -49,36 +52,6 @@ export default function MusicPlayer() {
   const handlePlayPause = () => {
     if (!musicCurrent) return;
     setMusicPlaying(!musicPlaying);
-  };
-
-  const pickRandom = useCallback((exclude) => {
-    if (musicFiles.length <= 1) return musicFiles[0] || null;
-    const others = musicFiles.filter((f) => f.path !== exclude?.path);
-    return others[Math.floor(Math.random() * others.length)];
-  }, [musicFiles]);
-
-  const handleNext = useCallback(() => {
-    if (musicFiles.length === 0 || !musicCurrent) return;
-    if (musicShuffle) {
-      const next = pickRandom(musicCurrent);
-      if (next) setMusicCurrent(next);
-      return;
-    }
-    const idx = musicFiles.findIndex((f) => f.path === musicCurrent.path);
-    const next = musicFiles[(idx + 1) % musicFiles.length];
-    setMusicCurrent(next);
-  }, [musicFiles, musicCurrent, musicShuffle, pickRandom]);
-
-  const handlePrev = () => {
-    if (musicFiles.length === 0 || !musicCurrent) return;
-    if (musicShuffle) {
-      const prev = pickRandom(musicCurrent);
-      if (prev) setMusicCurrent(prev);
-      return;
-    }
-    const idx = musicFiles.findIndex((f) => f.path === musicCurrent.path);
-    const prev = musicFiles[(idx - 1 + musicFiles.length) % musicFiles.length];
-    setMusicCurrent(prev);
   };
 
   if (!musicFolder || musicFolderView) {
@@ -142,7 +115,7 @@ export default function MusicPlayer() {
           </svg>
         </button>
 
-        <button className="btn-music-control" onClick={handlePrev} title="Previous">
+        <button className="btn-music-control" onClick={playPrevTrack} title="Previous">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
             <rect x="3" y="5" width="3" height="14" rx="1" />
             <polygon points="21 5 10 12 21 19 21 5" />
@@ -162,7 +135,7 @@ export default function MusicPlayer() {
           )}
         </button>
 
-        <button className="btn-music-control" onClick={handleNext} title="Next">
+        <button className="btn-music-control" onClick={playNextTrack} title="Next">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
             <polygon points="3 5 14 12 3 19 3 5" />
             <rect x="18" y="5" width="3" height="14" rx="1" />
@@ -240,6 +213,19 @@ export default function MusicPlayer() {
             <line x1="17" y1="16" x2="23" y2="16" />
           </svg>
           <span>EQ</span>
+        </div>
+        <div
+          className={`music-folder-name${musicNormalize ? ' music-folder-name-active' : ''}`}
+          onClick={toggleMusicNormalize}
+          title="Volume normalization"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="5" y1="7" x2="5" y2="17" />
+            <line x1="10" y1="7" x2="10" y2="17" />
+            <line x1="15" y1="7" x2="15" y2="17" />
+            <line x1="20" y1="7" x2="20" y2="17" />
+          </svg>
+          <span>Norm</span>
         </div>
       </div>
     </div>

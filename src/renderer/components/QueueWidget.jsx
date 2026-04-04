@@ -15,6 +15,7 @@ export default function QueueWidget() {
   const clearAndCloseQueue = useAppStore((s) => s.clearAndCloseQueue);
   const setDownloadCancelled = useAppStore((s) => s.setDownloadCancelled);
   const openCancelModal = useAppStore((s) => s.openCancelModal);
+  const setAllQueueFormat = useAppStore((s) => s.setAllQueueFormat);
   const totalProgress = useAppStore((s) => s.totalProgress);
 
   const [closing, setClosing] = useState(false);
@@ -51,6 +52,20 @@ export default function QueueWidget() {
       <div className="queue-header">
         <h2>{showHistory ? 'Completed' : 'Queue'}</h2>
         <div className="queue-header-right">
+          {!showHistory && !busy && queue.length > 0 && (
+            <div className="queue-format-toggle">
+              <button
+                className="queue-format-btn"
+                onClick={() => setAllQueueFormat('mp4')}
+                title="Set all to MP4"
+              >All MP4</button>
+              <button
+                className="queue-format-btn"
+                onClick={() => setAllQueueFormat('mp3')}
+                title="Set all to MP3"
+              >All MP3</button>
+            </div>
+          )}
           {hasHistory && (
             <button
               className="btn-history-toggle"

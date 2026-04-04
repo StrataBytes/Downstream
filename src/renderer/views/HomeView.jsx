@@ -37,7 +37,7 @@ export default function HomeView() {
           </button>
         </div>
       </div>
-      <span className="home-version">v2.0.0</span>
+      <span className="home-version">v2.1.0</span>
     </div>
   );
 }
