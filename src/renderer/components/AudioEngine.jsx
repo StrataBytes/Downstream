@@ -141,11 +141,10 @@ export default function AudioEngine() {
     normGainNode.gain.cancelScheduledValues(audioCtx.currentTime);
     normGainNode.gain.value = 1.0;
 
-    const targetRMS = 0.125;
-    const rmsValues = [];
-    let count = 0;
-    const maxSamples = 30;
+    const targetRMS = 0.1;
     const dataArray = new Float32Array(measureAnalyser.fftSize);
+    let totalRMS = 0;
+    let sampleCount = 0;
 
     normIntervalRef.current = setInterval(() => {
       measureAnalyser.getFloatTimeDomainData(dataArray);
@@ -155,19 +154,18 @@ export default function AudioEngine() {
       }
       const rms = Math.sqrt(sum / dataArray.length);
       const vol = audioRef.current?.volume || 1;
-      if (rms > 0.001 && vol > 0.01) {
-        rmsValues.push(rms / vol);
+
+      if (rms < 0.001 || vol < 0.01) return;
+
+      totalRMS += rms / vol;
+      sampleCount++;
+
+      if (sampleCount >= 10) {
+        const avgRMS = totalRMS / sampleCount;
+        const gain = Math.min(2.0, Math.max(0.5, targetRMS / avgRMS));
+        normGainNode.gain.setTargetAtTime(gain, audioCtx.currentTime, 0.5);
       }
-      count++;
-      if (count >= maxSamples) {
-        clearInterval(normIntervalRef.current);
-        if (rmsValues.length > 0) {
-          const avgRMS = rmsValues.reduce((a, b) => a + b, 0) / rmsValues.length;
-          const gain = Math.min(4.0, Math.max(0.25, targetRMS / avgRMS));
-          normGainNode.gain.setTargetAtTime(gain, audioCtx.currentTime, 0.15);
-        }
-      }
-    }, 50);
+    }, 100);
 
     return () => clearInterval(normIntervalRef.current);
   }, [musicCurrent, musicNormalize]);
