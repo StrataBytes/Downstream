@@ -1,4 +1,7 @@
-import useAppStore from '../stores/useAppStore';
+import { useState, useEffect } from 'react';
+import useAppStore, { getAcceptedExtensions } from '../stores/useAppStore';
+import { dbg } from '../services/debugLog';
+import ScrollingText from './ScrollingText';
 
 export default function MusicPlayer() {
   const musicFolder = useAppStore((s) => s.musicFolder);
@@ -23,18 +26,55 @@ export default function MusicPlayer() {
   const setMusicVolume = useAppStore((s) => s.setMusicVolume);
   const eqOpen = useAppStore((s) => s.eqOpen);
   const setEqOpen = useAppStore((s) => s.setEqOpen);
+  const behaviorOpen = useAppStore((s) => s.behaviorOpen);
+  const setBehaviorOpen = useAppStore((s) => s.setBehaviorOpen);
+  const playerViewMode = useAppStore((s) => s.playerViewMode);
   const musicFolderView = useAppStore((s) => s.musicFolderView);
   const setMusicFolderView = useAppStore((s) => s.setMusicFolderView);
   const savedFolders = useAppStore((s) => s.savedFolders);
   const addSavedFolder = useAppStore((s) => s.addSavedFolder);
   const removeSavedFolder = useAppStore((s) => s.removeSavedFolder);
+  const loudnessScanningTrack = useAppStore((s) => s.loudnessScanningTrack);
+  const setNormInfoOpen = useAppStore((s) => s.setNormInfoOpen);
+
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const loadFolder = async (folder) => {
     setMusicFolder(folder);
-    const files = await window.electronAPI.readMusicFolder(folder);
+    const state = useAppStore.getState();
+    const exts = getAcceptedExtensions(state);
+    dbg('library', `loading "${folder}" (accepts ${exts.join(', ')})`);
+    const files = await window.electronAPI.readMusicFolder(folder, exts);
+
+    if (files.length === 0) {
+      dbg('library', '!', 'no supported files found');
+      setToast(`No supported files found. Add ${exts.map(e => '.' + e).join(', ')} files to this folder.`);
+      setMusicFolder(null);
+      return;
+    }
+
+    // when shuffle will be active (already on, or about to be enabled by shuffle on start below), the first track must be random too.
+    // toggleMusicShuffle anchors its queue on the current track, so seeding with files[0] made the same alphabetically-first song open every session even though the rest of the queue was shuffled.
+    const willShuffle = state.musicShuffle || state.behaviorShuffleOnStart;
+    const first = willShuffle ? files[Math.floor(Math.random() * files.length)] : files[0];
+    dbg('library', `loaded ${files.length} track(s), auto-selecting "${first.name}"${willShuffle ? ' (random start)' : ''}`);
     setMusicFiles(files);
-    if (files.length > 0) setMusicCurrent(files[0]);
+    setMusicCurrent(first);
     setMusicFolderView(false);
+    setToast(null);
+
+    if (state.behaviorNormalizeOnStart && !state.musicNormalize) {
+      state.toggleMusicNormalize();
+    }
+    if (state.behaviorShuffleOnStart && !state.musicShuffle) {
+      state.toggleMusicShuffle();
+    }
   };
 
   const handleAddFolder = async () => {
@@ -54,7 +94,8 @@ export default function MusicPlayer() {
     setMusicPlaying(!musicPlaying);
   };
 
-  if (!musicFolder || musicFolderView) {
+  const showFolderSelect = !musicFolder || musicFolderView || (!musicPlaying && !musicCurrent);
+  if (showFolderSelect) {
     return (
       <div className="music-folder-select">
         <h2 className="folder-select-title">Select a Folder</h2>
@@ -90,21 +131,35 @@ export default function MusicPlayer() {
             <span className="folder-card-name">Add Folder</span>
           </div>
         </div>
+        {toast && (
+          <div className="folder-toast">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>{toast}</span>
+          </div>
+        )}
       </div>
     );
   }
 
+  const isCommander = playerViewMode === 'commander';
+
   return (
-    <div className="music-player">
-      <div className="music-track-name">
-        {musicCurrent ? musicCurrent.name : 'No track selected'}
-      </div>
+    <div className={`music-player${isCommander ? ' music-player-commander' : ''}`}>
+      <ScrollingText
+        text={musicCurrent ? musicCurrent.name : 'No track selected'}
+        variant="ambient"
+        className="music-track-name"
+      />
 
       <div className="music-controls">
         <button
           className={`btn-music-toggle${musicShuffle ? ' btn-music-toggle-active' : ''}`}
           onClick={toggleMusicShuffle}
-          title="Shuffle"
+          title="Randomize Playlist"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="16 3 21 3 21 8" />
@@ -145,7 +200,7 @@ export default function MusicPlayer() {
         <button
           className={`btn-music-toggle${musicRepeat ? ' btn-music-toggle-active' : ''}`}
           onClick={toggleMusicRepeat}
-          title="Repeat"
+          title="Repeat Current Track Infinitely"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="17 1 21 5 17 9" />
@@ -155,6 +210,8 @@ export default function MusicPlayer() {
           </svg>
         </button>
       </div>
+
+      <div className="music-player-extras">
 
       <div className="music-volume">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -227,7 +284,38 @@ export default function MusicPlayer() {
           </svg>
           <span>Norm</span>
         </div>
+        <div
+          className={`music-folder-name${behaviorOpen ? ' music-folder-name-active' : ''}`}
+          onClick={() => setBehaviorOpen(!behaviorOpen)}
+          title="Playback behavior"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z" />
+          </svg>
+          <span>Behavior</span>
+        </div>
       </div>
+
+      </div>
+
+      {loudnessScanningTrack && (
+        <div
+          className="norm-scan-toast"
+          onClick={() => setNormInfoOpen(true)}
+          title="Click to learn how Contextual Normalization works"
+        >
+          <div className="norm-scan-title-row">
+            <ScrollingText text="Normalizing your Library..." className="norm-scan-title" />
+            <svg className="norm-scan-info-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+          </div>
+          <ScrollingText text={loudnessScanningTrack} className="norm-scan-track" />
+        </div>
+      )}
     </div>
   );
 }

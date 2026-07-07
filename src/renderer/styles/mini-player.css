@@ -60,9 +60,6 @@
 
 .mini-player-track {
   max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-size: 0.72em;
   color: rgba(255,255,255,0.5);
   margin: 0 4px;
@@ -85,7 +82,11 @@
   white-space: nowrap;
   margin-left: 2px;
 }
-.mini-player-return:hover {
+.mini-player-return:hover:not(:disabled) {
   background: rgba(76,208,193,0.18);
   border-color: rgba(76,208,193,0.45);
+}
+.mini-player-return-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }

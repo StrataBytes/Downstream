@@ -1,0 +1,133 @@
+/* === disable blur === */
+
+body.lite-no-blur #background-layer {
+  filter: brightness(0.38) saturate(0.8) contrast(0.92);
+  transform: none;
+}
+
+body.lite-no-blur #background-layer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(7, 12, 20, 0.82) 0%, rgba(8, 16, 28, 0.48) 45%, rgba(4, 7, 12, 0.84) 100%),
+    radial-gradient(circle at 20% 20%, rgba(76, 208, 193, 0.08), transparent 38%);
+  pointer-events: none;
+}
+
+body.lite-no-blur .primary-widget,
+body.lite-no-blur .queue-widget,
+body.lite-no-blur .home-widget {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(15, 25, 35, 0.95);
+  box-shadow: none;
+}
+
+body.lite-no-blur .music-library {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(15, 25, 35, 0.95);
+  box-shadow: none;
+}
+
+body.lite-no-blur .playlist-panel {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(15, 25, 35, 0.95);
+  box-shadow: none;
+}
+
+body.lite-no-blur .mini-player {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(15, 25, 35, 0.95);
+}
+
+body.lite-no-blur .eq-backdrop {
+  backdrop-filter: none;
+}
+
+body.lite-no-blur .eq-panel {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(15, 25, 35, 0.95);
+}
+
+body.lite-no-blur .modal {
+  backdrop-filter: none;
+}
+
+body.lite-no-blur .disclaimer-backdrop {
+  backdrop-filter: none;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+body.lite-no-blur .guide-backdrop {
+  backdrop-filter: none;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+body.lite-no-blur .behavior-backdrop {
+  backdrop-filter: none;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+body.lite-no-blur .options-backdrop {
+  backdrop-filter: none;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+body.lite-no-blur .loading-overlay {
+  backdrop-filter: none;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+body.lite-no-blur .search-results {
+  backdrop-filter: none;
+  background: rgba(15, 25, 35, 0.95);
+}
+
+body.lite-no-blur .queue-ctx-menu {
+  backdrop-filter: none;
+  background: rgba(18, 18, 24, 0.98);
+}
+
+body.lite-no-blur .new-files-popup {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(15, 25, 35, 0.95);
+}
+
+body.lite-no-blur .update-banner {
+  backdrop-filter: none;
+  background: rgba(20, 30, 42, 0.95);
+  box-shadow: none;
+}
+
+/* === reduce animations === */
+
+body.lite-no-anim *,
+body.lite-no-anim *::before,
+body.lite-no-anim *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.05s !important;
+}
+
+body.lite-no-anim .intro-phrase {
+  animation-duration: 2.2s !important;
+}
+
+body.lite-no-anim .intro-spinner,
+body.lite-no-anim .loading-spinner {
+  animation-duration: 0.75s !important;
+}
+
+/* marquee scrolling for overflowing titles (queue rows, mini-player, music player) is functional, not decorative.
+   long titles become unreadable without it, so it's exempt from the blanket animation kill above. */
+body.lite-no-anim .scrolling-text-inner {
+  animation-duration: var(--scroll-dur, 10s) !important;
+}
+body.lite-no-anim .scrolling-text-inner-ambient {
+  animation-duration: var(--scroll-dur, 20s) !important;
+}

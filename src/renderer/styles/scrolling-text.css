@@ -1,0 +1,54 @@
+.scrolling-text {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.scrolling-text.scrolling-text-active {
+  text-overflow: clip;
+  text-align: left;
+}
+
+/* === default variant (queue rows, mini-player) === */
+
+.scrolling-text-inner {
+  display: inline-block;
+  animation: scrollingTextScroll var(--scroll-dur, 10s) linear infinite;
+}
+
+@keyframes scrollingTextScroll {
+  0%   { transform: translateX(0);                  opacity: 1; }
+  5%   { transform: translateX(0);                  opacity: 1; }
+  40%  { transform: translateX(var(--scroll-dist));  opacity: 1; }
+  48%  { transform: translateX(var(--scroll-dist));  opacity: 1; }
+  53%  { transform: translateX(var(--scroll-dist));  opacity: 0; }
+  57%  { transform: translateX(0);                  opacity: 0; }
+  62%  { transform: translateX(0);                  opacity: 1; }
+  100% { transform: translateX(0);                  opacity: 1; }
+}
+
+/* === ambient variant (music player): slow scroll, long hold === */
+
+.scrolling-text-inner-ambient {
+  display: inline-block;
+  animation: scrollingTextScrollAmbient var(--scroll-dur, 20s) linear infinite;
+}
+
+@keyframes scrollingTextScrollAmbient {
+  /* hold at start, 25% of the cycle */
+  0%   { transform: translateX(0);                  opacity: 1; }
+  25%  { transform: translateX(0);                  opacity: 1; }
+  /* scroll to end, 40% of the cycle */
+  65%  { transform: translateX(var(--scroll-dist));  opacity: 1; }
+  /* hold at end, 8% */
+  73%  { transform: translateX(var(--scroll-dist));  opacity: 1; }
+  /* fade out, 5% */
+  78%  { transform: translateX(var(--scroll-dist));  opacity: 0; }
+  /* invisible jump back, 3% */
+  81%  { transform: translateX(0);                  opacity: 0; }
+  /* fade in, 4% */
+  85%  { transform: translateX(0);                  opacity: 1; }
+  /* hold at start before next cycle, 15% */
+  100% { transform: translateX(0);                  opacity: 1; }
+}

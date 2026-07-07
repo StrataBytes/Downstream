@@ -1,6 +1,7 @@
 @import './base.css';
 @import './layout.css';
 @import './primary.css';
+@import './scrolling-text.css';
 @import './queue.css';
 @import './buttons.css';
 @import './progress.css';
@@ -13,5 +14,11 @@
 @import './disclaimer.css';
 @import './eq.css';
 @import './mini-player.css';
+@import './behavior.css';
 @import './search.css';
+@import './new-files-popup.css';
+@import './guide.css';
+@import './options.css';
+@import './lite.css';
+@import './debug.css';
 

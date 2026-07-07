@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
+import useAppStore from '../stores/useAppStore';
 
 export default function UpdateBanner() {
-  const [info, setInfo] = useState(null);
+  const versionInfo = useAppStore((s) => s.versionInfo);
+  const setVersionInfo = useAppStore((s) => s.setVersionInfo);
   const [dismissed, setDismissed] = useState(false);
 
+  // only fetches if startup preload hasn't already populated the store
   useEffect(() => {
-    window.electronAPI.checkVersion().then((data) => {
-      if (data && data.outdated) setInfo(data);
-    });
+    if (versionInfo !== null) return;
+    if (!useAppStore.getState().checkUpdatesOnStart) return;
+    window.electronAPI.checkVersion().then((data) => setVersionInfo(data));
   }, []);
 
-  if (!info || dismissed) return null;
+  const info = versionInfo;
+  if (!info || !info.outdated || dismissed) return null;
 
   return (
     <div className="update-banner">

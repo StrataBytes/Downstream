@@ -1,4 +1,5 @@
 import useAppStore from '../stores/useAppStore';
+import ScrollingText from './ScrollingText';
 
 export default function MiniPlayer() {
   const currentView = useAppStore((s) => s.currentView);
@@ -8,6 +9,8 @@ export default function MiniPlayer() {
   const setCurrentView = useAppStore((s) => s.setCurrentView);
   const playNextTrack = useAppStore((s) => s.playNextTrack);
   const playPrevTrack = useAppStore((s) => s.playPrevTrack);
+  const isDownloading = useAppStore((s) => s.isDownloading);
+  const busy = isDownloading;
 
   if (currentView === 'player' || !musicCurrent) return null;
 
@@ -44,12 +47,13 @@ export default function MiniPlayer() {
         </svg>
       </button>
 
-      <span className="mini-player-track">{musicCurrent.name}</span>
+      <ScrollingText text={musicCurrent.name} className="mini-player-track" />
 
       <button
-        className="mini-player-return"
-        onClick={() => setCurrentView('player')}
-        title="Return to player"
+        className={`mini-player-return${busy ? ' mini-player-return-disabled' : ''}`}
+        onClick={() => !busy && setCurrentView('player')}
+        title={busy ? 'Busy -- wait for downloads to finish' : 'Return to player'}
+        disabled={busy}
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9 18V5l12-2v13" />

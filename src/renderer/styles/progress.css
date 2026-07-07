@@ -34,6 +34,16 @@
 .mini-progress-fill.fill-done { background: #2ecc71; }
 .mini-progress-fill.fill-error { background: #e74c3c; }
 
+@keyframes finalizing-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.mini-progress-fill.fill-finalizing {
+  background: linear-gradient(90deg, #4cd0c1 40%, #9ef5ec 60%, #4cd0c1 80%);
+  background-size: 200% 100%;
+  animation: finalizing-shimmer 1.2s linear infinite;
+}
+
 @keyframes skeleton-loading {
   0%   { background-position: -200px 0; }
   100% { background-position: calc(200px + 100%) 0; }

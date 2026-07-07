@@ -36,3 +36,15 @@
 .song-progress-bar:hover .song-progress-fill {
   background: #5ee8d8;
 }
+
+/* same sweep as the downloader's "finalizing" stage, signals "still working" while a post-seek buffer/disk check is in flight.
+   confined to the already-filled width so it never implies more progress than there is. */
+@keyframes song-progress-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.song-progress-fill.song-progress-buffering {
+  background: linear-gradient(90deg, #4cd0c1 40%, #9ef5ec 60%, #4cd0c1 80%);
+  background-size: 200% 100%;
+  animation: song-progress-shimmer 1.2s linear infinite;
+}

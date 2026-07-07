@@ -55,6 +55,25 @@
   text-align: center;
 }
 
+.disclaimer-privacy {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px;
+  background: rgba(76,208,193,0.07);
+  border: 1px solid rgba(76,208,193,0.18);
+  border-radius: 8px;
+  color: rgba(76,208,193,0.7);
+  font-size: 0.78em;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.disclaimer-privacy svg {
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
 .disclaimer-buttons {
   display: flex;
   gap: 14px;

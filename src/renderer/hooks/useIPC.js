@@ -8,10 +8,10 @@ export function useIPCListeners() {
     if (listenersRegistered) return;
     listenersRegistered = true;
 
-    window.electronAPI.on('download-progress', (_event, { url, progress }) => {
+    window.electronAPI.on('download-progress', (_event, { url, progress, finalizing }) => {
       useAppStore.getState().updateQueueItem(url, {
         progress,
-        status: `Downloading (${progress}%)`,
+        status: finalizing ? 'Finalizing...' : `Downloading (${progress}%)`,
       });
     });
 

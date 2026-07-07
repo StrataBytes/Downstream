@@ -1,12 +1,14 @@
 {
   "name": "electron",
-  "productName": "DownStream",
-  "displayName": "DownStream",
-  "version": "2.1.1",
-  "description": "DownStream",
+  "productName": "Downstream",
+  "displayName": "Downstream",
+  "version": "2.2.8",
+  "description": "Downstream",
   "main": ".vite/build/main.js",
   "scripts": {
+    "setup": "npm install --ignore-scripts && node scripts/postinstall.js",
     "start": "electron-forge start",
+    "start-fresh": "electron-forge start -- --fresh",
     "package": "electron-forge package",
     "make": "electron-forge make"
   },
@@ -14,6 +16,7 @@
   "license": "GPLv3",
   "dependencies": {
     "ffmpeg-static": "^5.2.0",
+    "ffprobe-static": "^3.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "yt-dlp-exec": "^1.0.2",
@@ -23,6 +26,7 @@
   "devDependencies": {
     "@electron-forge/cli": "^7.5.0",
     "@electron-forge/maker-deb": "^7.5.0",
+    "@electron-forge/maker-dmg": "^7.5.0",
     "@electron-forge/maker-rpm": "^7.5.0",
     "@electron-forge/maker-squirrel": "^7.5.0",
     "@electron-forge/maker-zip": "^7.5.0",

@@ -1,35 +1,13 @@
-import { useRef, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import useAppStore from '../stores/useAppStore';
+import ScrollingText from './ScrollingText';
 
 export default function QueueRow({ item, showRemove }) {
   const { url, title, quality, format, status, progress, titleLoaded, failed, completed, fadingOut } = item;
   const removeFromQueue = useAppStore((s) => s.removeFromQueue);
   const setQueueItemFormat = useAppStore((s) => s.setQueueItemFormat);
   const isDownloading = useAppStore((s) => s.isDownloading);
-  const titleRef = useRef(null);
-  const [overflows, setOverflows] = useState(false);
   const [ctxMenu, setCtxMenu] = useState(null);
-
-  useEffect(() => {
-    const el = titleRef.current;
-    if (!el) return;
-    const check = () => {
-      const isOverflowing = el.scrollWidth > el.clientWidth + 1;
-      setOverflows(isOverflowing);
-      if (isOverflowing) {
-        const inner = el.firstElementChild;
-        if (inner) {
-          const dist = el.scrollWidth - el.clientWidth;
-          inner.style.setProperty('--scroll-dist', `${-dist}px`);
-          inner.style.setProperty('--scroll-dur', `${(dist / 20) + 4}s`);
-        }
-      }
-    };
-    check();
-    const obs = new ResizeObserver(check);
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [title]);
 
   const statusClass = failed ? 'status-error' : completed ? 'status-done' : '';
 
@@ -56,14 +34,10 @@ export default function QueueRow({ item, showRemove }) {
     <>
     <div className={`queue-row ${fadingOut ? 'queue-row-fade-out' : ''}`} onContextMenu={handleContextMenu}>
       <div className="queue-row-info">
-        <div
-          ref={titleRef}
-          className={`queue-row-title ${overflows ? 'queue-row-title-active' : ''} ${titleLoaded ? '' : 'skeleton-loader'}`}
-        >
-          <span className={overflows ? 'queue-row-title-scroll' : ''}>
-            {title}
-          </span>
-        </div>
+        <ScrollingText
+          text={title}
+          className={`queue-row-title${titleLoaded ? '' : ' skeleton-loader'}`}
+        />
         <span className="queue-row-tags">
           <span className="tag">{quality}</span>
           <span className="tag">{format?.toUpperCase()}</span>
@@ -84,7 +58,7 @@ export default function QueueRow({ item, showRemove }) {
       <div className="queue-row-status">
         <div className="mini-progress-track">
           <div
-            className={`mini-progress-fill ${completed ? 'fill-done' : ''} ${failed ? 'fill-error' : ''}`}
+            className={`mini-progress-fill ${completed ? 'fill-done' : ''} ${failed ? 'fill-error' : ''} ${status === 'Finalizing...' ? 'fill-finalizing' : ''}`}
             style={{ width: `${progress ?? 0}%` }}
           />
         </div>

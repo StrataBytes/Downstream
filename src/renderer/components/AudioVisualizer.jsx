@@ -21,6 +21,10 @@ export default function AudioVisualizer() {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
   const analyser = useAppStore((s) => s.musicAnalyser);
+  const hidden = useAppStore((s) => s.behaviorHideVisualizer);
+  const isLite = useAppStore((s) => s.renderProfile === 'lite');
+  const liteDisableVisualizer = useAppStore((s) => s.liteDisableVisualizer);
+  const visualizerOff = isLite && liteDisableVisualizer;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -107,7 +111,9 @@ export default function AudioVisualizer() {
       cancelAnimationFrame(animRef.current);
       window.removeEventListener('resize', resize);
     };
-  }, [analyser]);
+  }, [analyser, hidden, visualizerOff]);
+
+  if (hidden || visualizerOff) return null;
 
   return <canvas ref={canvasRef} className="audio-visualizer" />;
 }

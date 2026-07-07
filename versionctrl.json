@@ -1,8 +1,28 @@
 {
   "Versions": {
-    "2.1.1": {
+    "2.2.8": {
       "IsTargetOutdated": false,
-      "OutdatedMessage": "This version of DownStream is out of date. It is strongly recommended to update, as older versions may stop working at any time and are missing new features.",
+      "OutdatedMessage": "",
+      "KnownIssues": [
+        "",
+        "",
+        ""
+      ],
+      "updateButtonUrl": "https://github.com/StrataBytes/Downstream/releases"
+    },
+    "2.2.0": {
+      "IsTargetOutdated": true,
+      "OutdatedMessage": "This version of Downstream is out of date. It is strongly recommended to update, as older versions may stop working at any time and are missing new features.",
+      "KnownIssues": [
+        "",
+        "",
+        ""
+      ],
+      "updateButtonUrl": "https://github.com/StrataBytes/Downstream/releases"
+    },
+    "2.1.1": {
+      "IsTargetOutdated": true,
+      "OutdatedMessage": "This version of Downstream is out of date. It is strongly recommended to update, as older versions may stop working at any time and are missing new features.",
       "KnownIssues": [
         "",
         "",
@@ -12,7 +32,7 @@
     },
     "2.1.0": {
       "IsTargetOutdated": true,
-      "OutdatedMessage": "This version of DownStream is out of date. It is strongly recommended to update, as older versions may stop working at any time and are missing new features.",
+      "OutdatedMessage": "This version of Downstream is out of date. It is strongly recommended to update, as older versions may stop working at any time and are missing new features.",
       "KnownIssues": [
         "",
         "",
@@ -22,7 +42,7 @@
     },
     "2.0.0": {
       "IsTargetOutdated": true,
-      "OutdatedMessage": "This version of DownStream is out of date. It is strongly recommended to update, as older versions may stop working at any time and are missing new features.",
+      "OutdatedMessage": "This version of Downstream is out of date. It is strongly recommended to update, as older versions may stop working at any time and are missing new features.",
       "KnownIssues": [
         "",
         "",
@@ -32,7 +52,7 @@
     },
     "1.1.0": {
       "IsTargetOutdated": true,
-      "OutdatedMessage": "This version of DownStream is out of date. It is strongly recommended to update, as older versions may stop working at any time and are missing new features.",
+      "OutdatedMessage": "This version of Downstream is out of date. It is strongly recommended to update, as older versions may stop working at any time and are missing new features.",
       "KnownIssues": [
         "",
         "",
