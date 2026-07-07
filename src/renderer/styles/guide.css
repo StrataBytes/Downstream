@@ -1,0 +1,312 @@
+.guide-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(14px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: guideFadeIn 0.3s ease;
+}
+
+@keyframes guideFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.guide-modal {
+  background: linear-gradient(135deg, #1a2634, #243040);
+  border: 1px solid rgba(76,208,193,0.25);
+  border-radius: 16px;
+  display: flex;
+  max-width: 780px;
+  width: 92%;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+  animation: guideSlideUp 0.35s ease;
+}
+
+@keyframes guideSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* === sidebar === */
+
+.guide-sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 0;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  background: rgba(0,0,0,0.15);
+}
+
+.guide-sidebar-title {
+  font-size: 0.82em;
+  font-weight: 700;
+  color: #4cd0c1;
+  letter-spacing: 0.04em;
+  padding: 0 20px;
+  margin-bottom: 16px;
+}
+
+.guide-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px;
+}
+
+.guide-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  font-size: 0.76em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+}
+.guide-nav-btn:hover {
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.7);
+}
+.guide-nav-active {
+  background: rgba(76,208,193,0.1);
+  color: #4cd0c1;
+}
+.guide-nav-active:hover {
+  background: rgba(76,208,193,0.14);
+  color: #4cd0c1;
+}
+.guide-nav-btn svg {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+.guide-nav-active svg {
+  opacity: 1;
+}
+
+/* overview is the must-read, everything else reads as optional extra credit */
+.guide-nav-primary {
+  font-weight: 600;
+}
+
+.guide-nav-secondary {
+  padding-left: 20px;
+  color: rgba(255,255,255,0.32);
+}
+.guide-nav-secondary:hover {
+  color: rgba(255,255,255,0.55);
+}
+.guide-nav-secondary svg {
+  opacity: 0.4;
+}
+.guide-nav-secondary.guide-nav-active {
+  color: #4cd0c1;
+}
+.guide-nav-secondary.guide-nav-active svg {
+  opacity: 1;
+}
+
+.guide-nav-more-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  margin-top: 2px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255,255,255,0.28);
+  font-size: 0.66em;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.guide-nav-more-toggle:hover {
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.5);
+}
+.guide-nav-more-toggle svg {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.guide-nav-more-toggle-open svg {
+  transform: rotate(180deg);
+}
+
+.guide-dismiss-btn {
+  margin: 16px 16px 0;
+  padding: 10px 0;
+  border-radius: 10px;
+  border: 1px solid rgba(76,208,193,0.35);
+  background: rgba(76,208,193,0.1);
+  color: #4cd0c1;
+  font-size: 0.82em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.guide-dismiss-btn:hover {
+  background: #4cd0c1;
+  color: #0f1923;
+}
+
+.guide-dismiss-btn-content {
+  align-self: flex-start;
+  margin: 8px 0 0;
+  padding: 11px 36px;
+}
+
+/* === content === */
+
+.guide-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px 36px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.guide-content::-webkit-scrollbar { width: 5px; }
+.guide-content::-webkit-scrollbar-track { background: transparent; }
+.guide-content::-webkit-scrollbar-thumb { background: rgba(76,208,193,0.25); border-radius: 3px; }
+
+.guide-content-title {
+  font-size: 1.15em;
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+  letter-spacing: 0.3px;
+}
+
+.guide-content-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 0.82em;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.7;
+}
+
+.guide-content-body strong {
+  color: rgba(255,255,255,0.75);
+  font-weight: 600;
+}
+
+.guide-content-body ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 4px;
+}
+.guide-content-body li {
+  position: relative;
+  padding-left: 16px;
+}
+.guide-content-body li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(76,208,193,0.5);
+}
+
+.guide-callout {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(76,208,193,0.18);
+  background: rgba(76,208,193,0.06);
+  color: rgba(76,208,193,0.7);
+  font-size: 0.95em;
+  line-height: 1.5;
+}
+
+.guide-feature {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.025);
+}
+.guide-feature strong {
+  font-size: 0.95em;
+}
+.guide-feature span {
+  font-size: 0.95em;
+  color: rgba(255,255,255,0.4);
+  line-height: 1.5;
+}
+
+/* === keybind reference table: key badges on the left, action on the right === */
+.guide-keybinds {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.025);
+}
+
+.guide-keybind-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.guide-keybind-keys {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 110px;
+}
+
+.guide-keybind-desc {
+  font-size: 0.95em;
+  color: rgba(255,255,255,0.5);
+}
+
+.guide-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(76,208,193,0.3);
+  border-bottom: 2px solid rgba(76,208,193,0.35);
+  background: rgba(76,208,193,0.08);
+  color: #4cd0c1;
+  font-family: inherit;
+  font-size: 0.78em;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.guide-kbd-plus {
+  color: rgba(255,255,255,0.25);
+  font-size: 0.78em;
+}

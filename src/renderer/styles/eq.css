@@ -85,6 +85,66 @@
   color: #4cd0c1;
   background: rgba(76,208,193,0.1);
 }
+.eq-reset-btn-disabled,
+.eq-reset-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* inline confirm, swaps in for the reset button on the header row.
+   sized to match it so the eq content below never shifts. */
+.eq-reset-confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 10px;
+  border-radius: 6px;
+  background: rgba(255, 80, 80, 0.06);
+  border: 1px solid rgba(255, 80, 80, 0.2);
+  flex-shrink: 0;
+  animation: fadeIn 0.15s ease;
+}
+
+.eq-reset-confirm-text {
+  font-size: 0.72em;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+
+.eq-reset-confirm-text strong {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.eq-reset-confirm-yes {
+  padding: 3px 12px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 80, 80, 0.4);
+  background: rgba(255, 80, 80, 0.1);
+  color: #ff8888;
+  font-size: 0.7em;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.eq-reset-confirm-yes:hover {
+  background: rgba(255, 80, 80, 0.22);
+  border-color: rgba(255, 80, 80, 0.6);
+}
+
+.eq-reset-confirm-cancel {
+  padding: 3px 12px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 0.7em;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.eq-reset-confirm-cancel:hover {
+  color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.18);
+}
 .eq-presets {
   display: flex;
   gap: 6px;

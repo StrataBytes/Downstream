@@ -20,11 +20,31 @@ function copyDirSync(src, dest) {
 module.exports = {
   packagerConfig: {
     asar: true,
-    icon: 'epic',
-    extraResource: [
-      './node_modules/ffmpeg-static/ffmpeg.exe',
-      './node_modules/yt-dlp-exec/bin/yt-dlp.exe',
-    ],
+    appBundleId: 'com.stratabytes.downstream',
+    darwinDarkModeSupport: true,
+    // ad-hoc signs on macos (no apple developer account needed).
+    // a fully unsigned bundle makes macos run its xprotect/syspolicyd first-exec assessment on every executable in the bundle with nothing cacheable by code-hash, which causes a long first-launch hang on every reinstall.
+    // ad-hoc signatures give each binary a cdhash the system can assess once and cache. only applies when building on darwin.
+    ...(process.platform === 'darwin' ? {
+      osxSign: {
+        identity: '-',
+        identityValidation: false,
+      },
+    } : {}),
+    icon: process.platform === 'darwin'
+      ? 'assets/icons/mac/icon'
+      : 'assets/icons/win/icon',
+    extraResource: process.platform === 'darwin'
+      ? [
+          './node_modules/ffmpeg-static/ffmpeg',
+          `./node_modules/ffprobe-static/bin/darwin/${process.arch}/ffprobe`,
+          './node_modules/yt-dlp-exec/bin/yt-dlp',
+        ]
+      : [
+          './node_modules/ffmpeg-static/ffmpeg.exe',
+          `./node_modules/ffprobe-static/bin/win32/${process.arch}/ffprobe.exe`,
+          './node_modules/yt-dlp-exec/bin/yt-dlp.exe',
+        ],
   },
   hooks: {
     packageAfterCopy: async (_config, buildPath) => {
@@ -67,14 +87,24 @@ module.exports = {
       }
     },
   },
-  rebuildConfig: {},
+  rebuildConfig: {
+    onlyModules: [],
+  },
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
       config: {
-        name: 'DownStream',
-        setupIcon: 'epic.ico',
-        iconUrl: 'file://' + __dirname + '/epic.ico',
+        name: 'Downstream',
+        setupIcon: 'assets/icons/win/icon.ico',
+        iconUrl: 'file://' + path.join(__dirname, 'assets', 'icons', 'win', 'icon.ico'),
+      },
+    },
+    {
+      name: '@electron-forge/maker-dmg',
+      config: {
+        name: 'Downstream',
+        icon: 'assets/icons/mac/icon.icns',
+        format: 'ULFO',
       },
     },
     {
@@ -106,6 +136,13 @@ module.exports = {
           entry: 'src/preload.js',
           config: 'vite.preload.config.mjs',
           target: 'preload',
+        },
+        {
+          // vite's main-process build doesn't inline local relative requires, leaving them as literal `require('./x')` resolved at runtime relative to the output directory.
+          // main.js's require('./binaryRecovery') needs this file built to .vite/build/binaryRecovery.js alongside it, in both dev and packaged builds.
+          entry: 'src/binaryRecovery.js',
+          config: 'vite.main.config.mjs',
+          target: 'main',
         },
       ],
       renderer: [

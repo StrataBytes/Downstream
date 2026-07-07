@@ -10,19 +10,22 @@ export default function QueueWidget() {
   const setShowHistory = useAppStore((s) => s.setShowHistory);
   const queueOpen = useAppStore((s) => s.queueOpen);
   const isDownloading = useAppStore((s) => s.isDownloading);
-  const isQueueing = useAppStore((s) => s.isQueueing);
-  const setQueueingCancelled = useAppStore((s) => s.setQueueingCancelled);
   const clearAndCloseQueue = useAppStore((s) => s.clearAndCloseQueue);
   const setDownloadCancelled = useAppStore((s) => s.setDownloadCancelled);
   const openCancelModal = useAppStore((s) => s.openCancelModal);
   const setAllQueueFormat = useAppStore((s) => s.setAllQueueFormat);
   const totalProgress = useAppStore((s) => s.totalProgress);
+  const downloadFolder = useAppStore((s) => s.downloadFolder);
+  const setDownloadFolder = useAppStore((s) => s.setDownloadFolder);
 
+  const currentView = useAppStore((s) => s.currentView);
   const [closing, setClosing] = useState(false);
 
+  if (currentView !== 'download') return null;
   if (!queueOpen && queue.length === 0 && queueHistory.length === 0) return null;
 
-  const busy = isDownloading || isQueueing;
+  const busy = isDownloading;
+  const fetchingTitles = queue.some((item) => !item.titleLoaded);
 
   const handleClearAndClose = () => {
     setClosing(true);
@@ -30,6 +33,11 @@ export default function QueueWidget() {
       clearAndCloseQueue();
       setClosing(false);
     }, 350); // matches CSS slide-out duration
+  };
+
+  const handleChangeFolder = async () => {
+    const selected = await window.electronAPI.selectDownloadFolder();
+    if (selected) setDownloadFolder(selected);
   };
 
   const handleCancel = () => {
@@ -82,6 +90,12 @@ export default function QueueWidget() {
         </div>
       </div>
 
+      {!showHistory && fetchingTitles && (
+        <div className="queue-fetch-hint">
+          Fetching titles in the background -- downloads don&apos;t need to wait.
+        </div>
+      )}
+
       <div className="queue-list">
         {displayItems.length === 0 && (
           <div className="queue-empty">
@@ -112,9 +126,9 @@ export default function QueueWidget() {
       {!showHistory && (
         <div className="queue-actions">
           <button
-            className={`btn-primary ${busy ? 'btn-disabled' : ''}`}
+            className={`btn-primary ${(busy || queue.length === 0) ? 'btn-disabled' : ''}`}
             onClick={() => downloadAll()}
-            disabled={busy}
+            disabled={busy || queue.length === 0}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -126,12 +140,28 @@ export default function QueueWidget() {
           {isDownloading && (
             <button className="btn-danger" onClick={handleCancel}>Cancel</button>
           )}
-          {isQueueing && (
-            <button className="btn-danger" onClick={() => setQueueingCancelled(true)}>Cancel</button>
-          )}
-          <button className={`btn-ghost ${busy ? 'btn-disabled' : ''}`} onClick={() => window.electronAPI.openDownloadsFolder()} disabled={busy}>
-            Open Folder
-          </button>
+          <div className={`btn-folder-split${busy ? ' btn-disabled' : ''}`}>
+            <button
+              className="btn-folder-main"
+              onClick={() => window.electronAPI.openDownloadsFolder(downloadFolder)}
+              disabled={busy}
+              title={downloadFolder ? `Open: ${downloadFolder}` : 'Open Downloads folder'}
+            >
+              {downloadFolder
+                ? `📁 ${downloadFolder.split(/[\\/]/).pop()}`
+                : 'Open Folder'}
+            </button>
+            <button
+              className="btn-folder-wedge"
+              onClick={handleChangeFolder}
+              disabled={busy}
+              title="Change download location (this session only)"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="2,3 5,7 8,3" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 

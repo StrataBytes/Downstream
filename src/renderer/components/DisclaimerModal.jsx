@@ -1,22 +1,16 @@
 import useAppStore from '../stores/useAppStore';
 
 const DOWNLOAD_DISCLAIMER = {
-  title: 'Content Download Disclaimer',
-  paragraphs: [
-    'This downloader is provided for personal and lawful use only. You must have explicit permission from the content creator or rights holder before downloading any material.',
-    'Downloading copyrighted content without authorization may violate applicable laws and the terms of service of the source platform.',
-    'By proceeding, you confirm that you will only download content you have the right to access and that you accept full responsibility for your use of this tool.',
-  ],
+  title: 'Before You Download',
+  body: 'Only download content you own or have permission to access. Downloading copyrighted material without authorization may violate applicable laws -- you are solely responsible for your use.',
+  privacy: 'Downstream never tracks, logs, or reports your downloads. Everything stays on your device.',
   storageKey: 'disclaimerDownloadAccepted',
 };
 
 const PLAYER_DISCLAIMER = {
-  title: 'Music Player Disclaimer',
-  paragraphs: [
-    'This music player is intended primarily for playing No Copyright Sounds (NCS), royalty-free music, and content you own or have been granted a license to use.',
-    'You are solely responsible for ensuring that any music you play complies with applicable copyright laws. Playing copyrighted material without proper authorization may violate those laws.',
-    'By proceeding, you confirm that you will abide by all copyright laws and accept full responsibility for the content you play.',
-  ],
+  title: 'Before You Play',
+  body: 'Only play music you own or hold a valid license to use. Copyright compliance is your responsibility.',
+  privacy: 'Downstream never monitors or logs your playback. Your library stays completely private.',
   storageKey: 'disclaimerPlayerAccepted',
 };
 
@@ -44,9 +38,14 @@ export default function DisclaimerModal({ type, onAccept }) {
           </svg>
         </div>
         <h2 className="disclaimer-title">{disclaimer.title}</h2>
-        {disclaimer.paragraphs.map((p, i) => (
-          <p className="disclaimer-text" key={i}>{p}</p>
-        ))}
+        <p className="disclaimer-text">{disclaimer.body}</p>
+        <div className="disclaimer-privacy">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <span>{disclaimer.privacy}</span>
+        </div>
         <div className="disclaimer-buttons">
           <button className="disclaimer-btn disclaimer-btn-decline" onClick={handleDecline}>
             Go Back

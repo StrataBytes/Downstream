@@ -1,0 +1,275 @@
+.options-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(12px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: optionsFadeIn 0.3s ease;
+}
+
+@keyframes optionsFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.options-modal {
+  background: linear-gradient(135deg, #1a2634, #243040);
+  border: 1px solid rgba(76, 208, 193, 0.3);
+  border-radius: 16px;
+  padding: 32px 36px;
+  max-width: 580px;
+  max-height: 85vh;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  animation: optionsSlideUp 0.3s ease;
+  overflow: hidden;
+}
+
+@keyframes optionsSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.options-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.options-title {
+  font-size: 1.15em;
+  font-weight: 700;
+  color: #4cd0c1;
+  letter-spacing: 0.3px;
+}
+
+.options-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.options-body::-webkit-scrollbar { width: 5px; }
+.options-body::-webkit-scrollbar-track { background: transparent; }
+.options-body::-webkit-scrollbar-thumb { background: rgba(76, 208, 193, 0.3); border-radius: 3px; }
+
+/* === profile tiles === */
+
+.profile-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-tile {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.profile-tile-active {
+  border-color: rgba(76, 208, 193, 0.4);
+  background: rgba(76, 208, 193, 0.05);
+}
+
+.profile-tile-main {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+.profile-tile-main:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.profile-tile-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+}
+.profile-tile-active .profile-tile-icon {
+  background: rgba(76, 208, 193, 0.12);
+  color: #4cd0c1;
+}
+
+.profile-tile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.profile-tile-name {
+  font-size: 0.92em;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+.profile-tile-active .profile-tile-name {
+  color: #4cd0c1;
+}
+
+.profile-tile-desc {
+  font-size: 0.74em;
+  color: rgba(255, 255, 255, 0.35);
+  line-height: 1.4;
+}
+
+.profile-tile-badge {
+  font-size: 0.62em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #4cd0c1;
+  background: rgba(76, 208, 193, 0.12);
+  border: 1px solid rgba(76, 208, 193, 0.25);
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.profile-tile-expand {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.66em;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.profile-tile-expand:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.5);
+}
+.profile-tile-expand svg {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.profile-tile-expand-open svg {
+  transform: rotate(180deg);
+}
+.profile-tile-expand-disabled {
+  cursor: not-allowed;
+  color: rgba(255, 255, 255, 0.15);
+}
+.profile-tile-expand-disabled:hover {
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.15);
+}
+.profile-tile-expand-disabled svg {
+  opacity: 0.3;
+}
+
+.profile-tile-drawer {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.15);
+  animation: profileDrawerOpen 0.2s ease;
+}
+
+@keyframes profileDrawerOpen {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.profile-tile-drawer .behavior-toggle-row {
+  padding: 10px 16px;
+}
+.profile-tile-drawer .behavior-toggle-row + .behavior-toggle-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.profile-tile-empty {
+  padding: 14px 16px;
+  font-size: 0.74em;
+  color: rgba(255, 255, 255, 0.25);
+  font-style: italic;
+}
+
+/* === auto-detected lite mode callout: anchored below the options tile === */
+
+.auto-lite-bubble {
+  position: absolute;
+  top: calc(100% + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  padding: 10px 22px 10px 12px;
+  background: linear-gradient(135deg, #1a2634, #243040);
+  border: 1px solid rgba(76, 208, 193, 0.4);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.68em;
+  line-height: 1.45;
+  text-align: left;
+  cursor: default;
+  z-index: 5;
+  animation: autoLiteBubbleIn 0.3s ease;
+}
+
+@keyframes autoLiteBubbleIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.auto-lite-bubble-arrow {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 7px solid #1a2634;
+}
+
+.auto-lite-bubble-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.auto-lite-bubble-close:hover {
+  color: #ff5050;
+  background: rgba(255, 80, 80, 0.1);
+}

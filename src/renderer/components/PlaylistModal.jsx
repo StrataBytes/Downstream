@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import useAppStore from '../stores/useAppStore';
-import { addVideoToQueue } from '../services/downloadService';
+import { addPlaylistToQueue } from '../services/downloadService';
 
 export default function PlaylistModal() {
   const { open, info, quality, format } = useAppStore((s) => s.playlistModal);
@@ -37,24 +37,14 @@ export default function PlaylistModal() {
     }, 350);
   };
 
-  const handleAdd = async () => {
+  const handleAdd = () => {
     const selected = videos.filter((_, i) => isChecked(i));
     slideOut(() => {
       closePlaylistModal();
       setChecked({});
     });
-
-    const { setIsQueueing, setQueueingCancelled } = useAppStore.getState();
-    setIsQueueing(true);
-    setQueueingCancelled(false);
-
-    for (const video of selected) {
-      if (useAppStore.getState().queueingCancelled) break;
-      await addVideoToQueue(video.url, quality, format);
-    }
-
-    setIsQueueing(false);
-    setQueueingCancelled(false);
+    // the flat-playlist data already includes every title, one batched store update, no per-video fetches, nothing to wait for or cancel.
+    addPlaylistToQueue(selected, quality, format);
   };
 
   const handleCancel = () => {

@@ -7,6 +7,7 @@
   align-items: center;
   gap: 24px;
   flex-shrink: 0;
+  transition: padding 0.3s ease;
 }
 
 .primary-content {
@@ -17,10 +18,44 @@
   gap: 24px;
 }
 
-.btn-back {
+.btn-corner-zone {
   position: absolute;
-  top: 20px;
-  left: 20px;
+  top: 0;
+  left: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 10;
+}
+
+.btn-guide-hint {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(15,25,35,0.9);
+  color: rgba(255,255,255,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.3s ease, border-color 0.2s, color 0.2s, background 0.2s;
+  pointer-events: none;
+}
+.btn-corner-zone:hover .btn-guide-hint {
+  opacity: 1;
+  pointer-events: auto;
+}
+.btn-guide-hint:hover {
+  border-color: rgba(76,208,193,0.5);
+  color: #4cd0c1;
+  background: rgba(76,208,193,0.1);
+}
+
+.btn-back {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -32,7 +67,6 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
-  z-index: 10;
 }
 .btn-back:hover {
   border-color: #4cd0c1;
@@ -61,6 +95,22 @@
   flex-direction: column;
   gap: 12px;
 }
+
+/* inline validation message for rejected links (typos, malformed urls) */
+.input-bar-error {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  border-radius: 8px;
+  background: rgba(231, 76, 60, 0.08);
+  color: #e74c3c;
+  font-size: 0.76em;
+  animation: behaviorSlideUp 0.15s ease;
+}
+.input-bar-error svg { flex-shrink: 0; }
 
 .url-input {
   width: 100%;

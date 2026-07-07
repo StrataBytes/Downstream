@@ -1,0 +1,534 @@
+.behavior-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(12px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: behaviorFadeIn 0.3s ease;
+}
+
+@keyframes behaviorFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.behavior-modal {
+  background: linear-gradient(135deg, #1a2634, #243040);
+  border: 1px solid rgba(76,208,193,0.3);
+  border-radius: 16px;
+  max-width: 840px;
+  max-height: 85vh;
+  width: 92%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  animation: behaviorSlideUp 0.3s ease;
+  overflow: hidden;
+}
+
+/* row below the header: the section nav on the left, scrollable content on the right.
+   only this row scrolls internally, the header stays put. */
+.behavior-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.behavior-nav {
+  width: 172px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 14px 24px 32px;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  overflow-y: auto;
+}
+
+.behavior-nav-btn {
+  padding: 7px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255,255,255,0.38);
+  font-size: 0.7em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.behavior-nav-btn:hover {
+  color: rgba(255,255,255,0.65);
+  background: rgba(255,255,255,0.04);
+}
+
+/* the section currently selected, or scrolled into view, reads larger and bolder than the rest of the list rather than just changing color. */
+.behavior-nav-btn-active {
+  color: #4cd0c1;
+  background: rgba(76,208,193,0.1);
+  font-size: 0.82em;
+  font-weight: 700;
+}
+.behavior-nav-btn-active:hover {
+  color: #4cd0c1;
+  background: rgba(76,208,193,0.14);
+}
+
+.behavior-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+  padding: 2px 32px 28px 28px;
+}
+.behavior-body::-webkit-scrollbar { width: 5px; }
+.behavior-body::-webkit-scrollbar-track { background: transparent; }
+.behavior-body::-webkit-scrollbar-thumb { background: rgba(76,208,193,0.3); border-radius: 3px; }
+
+@keyframes behaviorSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.behavior-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 26px 32px 20px;
+  flex-shrink: 0;
+}
+
+.behavior-title {
+  font-size: 1.15em;
+  font-weight: 700;
+  color: #4cd0c1;
+  letter-spacing: 0.3px;
+}
+
+.behavior-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.behavior-close:hover {
+  color: #ff5050;
+  border-color: rgba(255,80,80,0.3);
+  background: rgba(255,80,80,0.1);
+}
+
+
+/* === sections === */
+
+.behavior-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.behavior-section-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.behavior-section-title {
+  font-size: 0.82em;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.behavior-section-desc {
+  font-size: 0.76em;
+  color: rgba(255,255,255,0.3);
+  line-height: 1.4;
+}
+
+.behavior-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+}
+
+/* === universal toggles === */
+
+.behavior-toggles {
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.02);
+  overflow: hidden;
+}
+
+.behavior-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.behavior-toggle-row:hover {
+  background: rgba(255,255,255,0.03);
+}
+.behavior-toggle-row + .behavior-toggle-row {
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+.behavior-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.behavior-toggle-label {
+  font-size: 0.8em;
+  font-weight: 500;
+  color: rgba(255,255,255,0.75);
+}
+
+.behavior-toggle-desc {
+  font-size: 0.68em;
+  color: rgba(255,255,255,0.3);
+  line-height: 1.4;
+}
+
+/* === toggle switch === */
+
+.behavior-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.1);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.behavior-switch-on {
+  background: rgba(76,208,193,0.45);
+}
+
+.behavior-switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.5);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+.behavior-switch-on .behavior-switch-thumb {
+  transform: translateX(16px);
+  background: #4cd0c1;
+}
+
+/* === locked (lite override) === */
+
+.behavior-toggle-locked {
+  opacity: 0.45;
+  cursor: default;
+}
+.behavior-toggle-locked:hover {
+  background: transparent;
+}
+
+.behavior-switch-locked {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.behavior-toggle-lite-hint {
+  color: rgba(76,208,193,0.45);
+  font-style: italic;
+}
+
+/* === view mode cards === */
+
+.behavior-modes {
+  display: flex;
+  gap: 10px;
+}
+
+.behavior-mode-card {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+.behavior-mode-card:hover:not(:disabled) {
+  border-color: rgba(76,208,193,0.35);
+  background: rgba(76,208,193,0.05);
+}
+
+.behavior-mode-active {
+  border-color: rgba(76,208,193,0.5);
+  background: rgba(76,208,193,0.08);
+}
+.behavior-mode-active:hover {
+  border-color: rgba(76,208,193,0.5);
+  background: rgba(76,208,193,0.08);
+}
+
+.behavior-mode-disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.behavior-mode-name {
+  font-size: 0.88em;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+}
+.behavior-mode-active .behavior-mode-name {
+  color: #4cd0c1;
+}
+
+.behavior-mode-desc {
+  font-size: 0.72em;
+  color: rgba(255,255,255,0.35);
+  line-height: 1.5;
+}
+.behavior-mode-active .behavior-mode-desc {
+  color: rgba(76,208,193,0.55);
+}
+
+.behavior-mode-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 0.62em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #4cd0c1;
+  background: rgba(76,208,193,0.12);
+  border: 1px solid rgba(76,208,193,0.25);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* nested sub-options revealed by a parent mode card (e.g. reactive normalization presets), indented with an accent rail to read as a child of the selection above it. */
+.behavior-subpanel {
+  margin-top: 12px;
+  padding: 12px 12px 12px 14px;
+  border-left: 2px solid rgba(76,208,193,0.25);
+  background: rgba(255,255,255,0.02);
+  border-radius: 0 10px 10px 0;
+}
+
+.behavior-subpanel-note {
+  margin: 0;
+  font-size: 0.7em;
+  color: rgba(255,255,255,0.3);
+  line-height: 1.5;
+}
+
+/* compact preset switcher (e.g. reactive's normal/aggressive/rigorous), pill labels only, with a single-line caption below for whichever one is selected.
+   keeps 3 options from turning into 3 stacked paragraphs. */
+.behavior-pill-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.behavior-pill {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.6);
+  font-size: 0.74em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+.behavior-pill:hover {
+  border-color: rgba(76,208,193,0.3);
+  color: rgba(255,255,255,0.85);
+}
+
+.behavior-pill-active {
+  border-color: rgba(76,208,193,0.5);
+  background: rgba(76,208,193,0.1);
+  color: #4cd0c1;
+}
+.behavior-pill-active:hover {
+  color: #4cd0c1;
+}
+
+/* contextual stats strip, measured count on the left, explanatory text on the right.
+   shimmers (reusing music.css's normScanShimmer) while a scan is actively running, same sheen as the player's "normalizing" toast. */
+.norm-stats-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(76,208,193,0.18);
+  background: rgba(76,208,193,0.04);
+  overflow: hidden;
+}
+
+.norm-stats-box.norm-stats-scanning::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 40%, rgba(76,208,193,0.14) 50%, transparent 60%);
+  background-size: 250% 100%;
+  animation: normScanShimmer 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.norm-stats-count {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 68px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: rgba(76,208,193,0.08);
+}
+
+.norm-stats-number {
+  font-size: 1.25em;
+  font-weight: 700;
+  color: #4cd0c1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.norm-stats-label {
+  font-size: 0.58em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(76,208,193,0.55);
+}
+
+.norm-stats-desc {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.7em;
+  color: rgba(255,255,255,0.4);
+  line-height: 1.55;
+}
+
+/* delete memory: destructive action, sits under the stats box in its own (smaller, lighter) box with an inline confirm step (same pattern as the eq preset reset).
+   deliberately less visually weighty than .norm-stats-box above it, tighter padding, a quieter tint, so it reads as secondary. */
+.norm-memory-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,90,90,0.14);
+  background: rgba(255,90,90,0.03);
+}
+
+.norm-memory-btn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,90,90,0.3);
+  background: rgba(255,90,90,0.08);
+  color: #ff6b6b;
+  font-size: 0.72em;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.norm-memory-btn:hover {
+  border-color: rgba(255,90,90,0.5);
+  background: rgba(255,90,90,0.15);
+}
+
+.norm-memory-desc {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.66em;
+  color: rgba(255,255,255,0.3);
+  line-height: 1.55;
+}
+
+.norm-memory-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.norm-memory-confirm-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.72em;
+  font-weight: 500;
+  color: rgba(255,255,255,0.6);
+}
+
+.norm-memory-confirm-yes {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(255,90,90,0.5);
+  background: #ff5050;
+  color: #1a1010;
+  font-size: 0.72em;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.norm-memory-confirm-yes:hover {
+  background: #ff6b6b;
+}
+
+.norm-memory-confirm-cancel {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.5);
+  font-size: 0.72em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.norm-memory-confirm-cancel:hover {
+  color: rgba(255,255,255,0.8);
+  border-color: rgba(255,255,255,0.25);
+}

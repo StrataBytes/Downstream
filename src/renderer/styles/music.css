@@ -1,11 +1,131 @@
 
 .music-player {
+  position: relative; /* anchor for the norm-scan toast overlay */
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 24px;
   padding: 16px 0;
+  transition: gap 0.3s ease, padding 0.3s ease;
+}
+
+/* "volume normalization in progress" toast, absolute overlay hanging below the panel with a clear gap under the chips.
+   never affects layout, so the widget height is identical whether or not a scan is running. */
+.norm-scan-toast {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: min(320px, 86%);
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgba(15, 25, 35, 0.9);
+  border: 1px solid rgba(76, 208, 193, 0.25);
+  cursor: pointer;
+  overflow: hidden;
+  animation: normScanIn 0.25s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.norm-scan-toast:hover {
+  border-color: rgba(76, 208, 193, 0.45);
+  background: rgba(15, 25, 35, 0.96);
+}
+
+/* faint diagonal sheen drifting across the toast, just enough to read as "still working", never fast or bright enough to be distracting. */
+.norm-scan-toast::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 40%, rgba(76, 208, 193, 0.12) 50%, transparent 60%);
+  background-size: 250% 100%;
+  animation: normScanShimmer 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* the sweep travels 300% over a 250%-wide pattern, not a whole number of repeats, so position 0% and 100% don't line up and the loop restart would otherwise be a visible jump.
+   fading opacity out right before the restart (and back in after) hides that seam instead of eliminating it. */
+@keyframes normScanShimmer {
+  0%   { background-position: 150% 0;  opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { background-position: -150% 0; opacity: 0; }
+}
+
+@keyframes normScanIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.norm-scan-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+}
+
+.norm-scan-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 0.66em;
+  font-weight: 600;
+  color: #4cd0c1;
+  letter-spacing: 0.4px;
+  text-align: center;
+}
+
+.norm-scan-info-icon {
+  flex-shrink: 0;
+  color: rgba(76, 208, 193, 0.55);
+}
+
+.norm-scan-track {
+  width: 100%;
+  font-size: 0.62em;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+}
+
+/* === extras wrapper: always visible in explorer, collapsible in commander === */
+
+.music-player-extras {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  max-height: 200px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+/* === commander mode === */
+
+.music-player-commander {
+  gap: 16px;
+  padding: 8px 0;
+}
+.music-player-commander .music-player-extras {
+  max-height: 0;
+  opacity: 0;
+  margin-top: -16px;
+  transition: max-height 0.3s ease, opacity 0.2s ease, margin-top 0.3s ease;
+}
+.music-player-commander:hover {
+  gap: 24px;
+  padding: 16px 0;
+}
+.music-player-commander:hover .music-player-extras {
+  max-height: 200px;
+  opacity: 1;
+  margin-top: 0;
+  transition: max-height 0.35s ease, opacity 0.25s 0.1s ease, margin-top 0.3s ease;
 }
 
 .music-player-empty {
@@ -112,15 +232,37 @@
   color: #ff5050;
 }
 
+.folder-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,180,60,0.25);
+  background: rgba(255,180,60,0.08);
+  color: rgba(255,200,100,0.8);
+  font-size: 0.72em;
+  line-height: 1.4;
+  max-width: 420px;
+  text-align: left;
+  animation: toastSlideIn 0.25s ease;
+}
+.folder-toast svg {
+  flex-shrink: 0;
+  color: rgba(255,180,60,0.7);
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .music-track-name {
+  width: 100%;
   font-size: 0.95em;
   font-weight: 600;
   color: #fff;
   text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
 }
 
 .music-controls {
@@ -237,8 +379,10 @@
 
 .music-actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .music-folder-name {
@@ -329,6 +473,129 @@
   font-size: 1.1em;
   font-weight: 700;
   color: #4cd0c1;
+}
+
+/* === toolbar: sort (funnel) dropdown + search toggle === */
+.music-library-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.music-library-sort {
+  position: relative;
+}
+
+.music-library-tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.5);
+  font-size: 0.72em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.music-library-tool-btn:hover {
+  border-color: rgba(76,208,193,0.3);
+  color: rgba(255,255,255,0.85);
+}
+.music-library-tool-btn-active {
+  border-color: rgba(76,208,193,0.4);
+  background: rgba(76,208,193,0.1);
+  color: #4cd0c1;
+}
+
+.music-library-sort-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  padding: 6px;
+  background: rgba(20,30,40,0.98);
+  border: 1px solid rgba(76,208,193,0.25);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+  animation: behaviorSlideUp 0.15s ease;
+}
+
+.music-library-sort-option {
+  padding: 8px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  font-size: 0.76em;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.music-library-sort-option:hover {
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+}
+.music-library-sort-option-active {
+  background: rgba(76,208,193,0.12);
+  color: #4cd0c1;
+  font-weight: 600;
+}
+
+.music-library-search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  animation: behaviorSlideUp 0.15s ease;
+}
+
+.music-library-search-icon {
+  flex-shrink: 0;
+  color: rgba(255,255,255,0.35);
+}
+
+.music-library-search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: #fff;
+  font-size: 0.8em;
+}
+.music-library-search-input::placeholder {
+  color: rgba(255,255,255,0.3);
+}
+
+.music-library-search-clear {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.music-library-search-clear:hover {
+  color: #ff5050;
+  background: rgba(255,80,80,0.1);
 }
 
 .music-library-list {

@@ -29,3 +29,24 @@ body {
   z-index: 0;
 }
 #background-layer.active { opacity: 1; }
+
+.background-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.8s ease;
+}
+
+.background-video-faded {
+  opacity: 0;
+}
+
+.background-video-flash {
+  animation: bgVideoFlash 0.8s ease;
+}
+
+@keyframes bgVideoFlash {
+  0% { opacity: 1; }
+  40% { opacity: 0.15; }
+  100% { opacity: 1; }
+}

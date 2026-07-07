@@ -1,5 +1,4 @@
-import useAppStore from '../stores/useAppStore';
-import { addVideoToQueue } from '../services/downloadService';
+import { addResolvedToQueue } from '../services/downloadService';
 
 function formatDate(raw) {
   if (!raw) return '';
@@ -20,15 +19,12 @@ function formatDuration(sec) {
 }
 
 export default function SearchResults({ results, quality, format, onClear }) {
-  const isDownloading = useAppStore((s) => s.isDownloading);
-  const isQueueing = useAppStore((s) => s.isQueueing);
-  const locked = isDownloading || isQueueing;
-
   if (!results || results.length === 0) return null;
 
-  const handleSelect = async (result) => {
-    if (locked) return;
-    await addVideoToQueue(result.url, quality, format);
+  const handleSelect = (result) => {
+    onClear();
+    // the search result already carries title/thumbnail/channel/duration, queue it instantly with zero re-fetching.
+    addResolvedToQueue(result, quality, format);
   };
 
   return (
@@ -46,9 +42,9 @@ export default function SearchResults({ results, quality, format, onClear }) {
         {results.map((r, i) => (
           <div
             key={r.url + i}
-            className={`search-result-item${locked ? ' search-result-locked' : ''}`}
+            className="search-result-item"
             onClick={() => handleSelect(r)}
-            title={locked ? 'Wait for current downloads to finish' : `Add "${r.title}" to queue`}
+            title={`Add "${r.title}" to queue`}
           >
             <div className="search-result-thumb">
               {r.thumbnail ? (

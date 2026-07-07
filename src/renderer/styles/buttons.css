@@ -112,6 +112,58 @@
   background: rgba(76,208,193,0.18);
 }
 
+.btn-folder-split {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.btn-folder-split:not(.btn-disabled):hover {
+  border-color: rgba(76,208,193,0.4);
+}
+.btn-folder-split.btn-disabled {
+  pointer-events: none;
+  opacity: 0.35;
+}
+.btn-folder-main {
+  flex: 1;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.55);
+  font-weight: 500;
+  font-size: 0.85em;
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.btn-folder-split:not(.btn-disabled):hover .btn-folder-main {
+  color: #4cd0c1;
+}
+.btn-folder-wedge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  flex-shrink: 0;
+  border: none;
+  border-left: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: rgba(255,255,255,0.35);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.btn-folder-split:not(.btn-disabled) .btn-folder-wedge:hover {
+  background: rgba(76,208,193,0.1);
+  color: #4cd0c1;
+}
+
 .btn-row-remove {
   display: flex;
   align-items: center;

@@ -1,4 +1,7 @@
 import useAppStore from '../stores/useAppStore';
+import { dbg } from './debugLog';
+import { toMediaUrl } from '../utils/mediaUrl';
+import { canonicalVideoUrl } from '../utils/linkCheck';
 
 const RATE_LIMIT = {
   API_CALL_DELAY: 1500,
@@ -7,16 +10,22 @@ const RATE_LIMIT = {
   BATCH_SIZE: 5,
 };
 
-let lastApiCall = 0;
 let downloadCount = 0;
 
-async function rateLimitedDelay() {
-  const now = Date.now();
-  const timeSinceLastCall = now - lastApiCall;
-  if (timeSinceLastCall < RATE_LIMIT.API_CALL_DELAY) {
-    await new Promise((r) => setTimeout(r, RATE_LIMIT.API_CALL_DELAY - timeSinceLastCall));
+function restoreAlbumBackground() {
+  const { behaviorAlbumBackground, musicCurrent, setBackgroundThumbnail, setBackgroundVideo, clearBackgroundThumbnail } = useAppStore.getState();
+  if (behaviorAlbumBackground && musicCurrent) {
+    if (/\.mp4$/i.test(musicCurrent.path)) {
+      setBackgroundVideo(toMediaUrl(musicCurrent.path));
+      return;
+    }
+    window.electronAPI.getAlbumArt(musicCurrent.path).then((dataUrl) => {
+      if (dataUrl) setBackgroundThumbnail(dataUrl);
+      else clearBackgroundThumbnail();
+    });
+  } else {
+    clearBackgroundThumbnail();
   }
-  lastApiCall = Date.now();
 }
 
 async function downloadRateLimitDelay() {
@@ -40,20 +49,95 @@ function formatUploadDate(raw) {
   return isNaN(d.getTime()) ? raw : d.toLocaleDateString();
 }
 
-export async function addVideoToQueue(url, quality, format) {
-  const { addToQueue } = useAppStore.getState();
-  addToQueue({ url, title: 'Loading...', quality, format, titleLoaded: false });
+function isQueued(url) {
+  return useAppStore.getState().queue.some((q) => q.url === url);
+}
 
-  await rateLimitedDelay();
-  const info = await window.electronAPI.getVideoInfo(url);
-  useAppStore.getState().updateQueueItem(url, {
-    title: info.title,
-    thumbnail: info.thumbnail,
-    uploader: info.uploader,
-    uploadDate: formatUploadDate(info.uploadDate),
-    duration: info.duration,
-    titleLoaded: true,
+// background metadata fetcher.
+// only pasted links need this, since search results and playlist entries arrive with metadata already attached.
+// items are queued and downloadable the instant they're added, this pump just fills in titles/thumbnails as it goes, serially, with a courtesy delay between yt-dlp spawns so a paste spree never hammers the platform. nothing ever waits on it.
+const metaQueue = [];
+let metaPumping = false;
+
+async function pumpMetadata() {
+  if (metaPumping) return;
+  metaPumping = true;
+  try {
+    while (metaQueue.length > 0) {
+      const url = metaQueue.shift();
+      if (!isQueued(url)) continue; // removed while waiting, skip the fetch
+      try {
+        const info = await window.electronAPI.getVideoInfo(url);
+        // updateQueueItem no-ops if the row was removed mid-fetch.
+        useAppStore.getState().updateQueueItem(url, {
+          title: info?.title || url,
+          thumbnail: info?.thumbnail || null,
+          uploader: info?.uploader,
+          uploadDate: formatUploadDate(info?.uploadDate),
+          duration: info?.duration,
+          titleLoaded: true,
+        });
+        dbg('queue', `resolved "${info?.title || url}"`);
+      } catch {
+        // display falls back to the url, the item downloads fine regardless since yt-dlp resolves the real title itself at download time.
+        useAppStore.getState().updateQueueItem(url, { title: url, titleLoaded: true });
+        dbg('queue', '!', `metadata fetch failed for ${url} -- item still downloadable`);
+      }
+      if (metaQueue.length > 0) {
+        await new Promise((r) => setTimeout(r, RATE_LIMIT.API_CALL_DELAY));
+      }
+    }
+  } finally {
+    metaPumping = false;
+  }
+}
+
+// pasted link: queues instantly with a placeholder title, resolves in the background, never blocks or locks the ui.
+// the url is canonicalized first so share-link variants of the same video dedupe to one entry.
+export function addLinkToQueue(rawUrl, quality, format) {
+  const url = canonicalVideoUrl(rawUrl);
+  if (isQueued(url)) return;
+  useAppStore.getState().addToQueue({
+    url, title: 'Fetching title…', quality, format, titleLoaded: false,
   });
+  dbg('queue', `add (link) ${url} (${format}/${quality})`);
+  if (!metaQueue.includes(url)) metaQueue.push(url);
+  pumpMetadata();
+}
+
+// search result: all display metadata is already in hand, zero fetches.
+export function addResolvedToQueue(result, quality, format) {
+  const url = canonicalVideoUrl(result.url);
+  if (isQueued(url)) return;
+  useAppStore.getState().addToQueue({
+    url,
+    title: result.title || result.url,
+    thumbnail: result.thumbnail || null,
+    uploader: result.channel || result.uploader,
+    uploadDate: formatUploadDate(result.uploadDate),
+    duration: result.duration,
+    titleLoaded: true,
+    quality,
+    format,
+  });
+  dbg('queue', `add (search) "${result.title}"`);
+}
+
+// playlist selection: one batched store update with the titles the flat playlist already gave us, so a 50-video add is instant and costs zero additional platform requests.
+// thumbnails come from youtube's static image cdn, same pattern search results already use.
+export function addPlaylistToQueue(videos, quality, format) {
+  const items = videos.map((v) => ({
+    url: canonicalVideoUrl(v.url),
+    title: v.title || v.url,
+    thumbnail: v.id ? `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg` : null,
+    uploader: v.uploader,
+    duration: v.duration,
+    titleLoaded: true,
+    quality,
+    format,
+  }));
+  useAppStore.getState().addManyToQueue(items);
+  dbg('queue', `added ${items.length} playlist item(s) instantly`);
 }
 
 export async function downloadAll() {
@@ -61,6 +145,7 @@ export async function downloadAll() {
   const queue = [...state.queue];
 
   if (queue.length === 0) return;
+  dbg('download', `starting batch of ${queue.length}`);
 
   state.setIsDownloading(true);
   state.setDownloadCancelled(false);
@@ -107,13 +192,17 @@ export async function downloadAll() {
         url: item.url,
         quality: item.quality,
         format: item.format,
+        outputDir: useAppStore.getState().downloadFolder || null,
       });
 
       if (result && !result.success) {
+        dbg('download', '!', `"${latestItem.title}" failed: ${result.error || 'unknown'}`);
         useAppStore.getState().updateQueueItem(item.url, { status: 'Error' });
+      } else {
+        dbg('download', `"${latestItem.title}" done`);
       }
     } catch (err) {
-      console.error(`Download failed for ${item.url}:`, err);
+      dbg('download', '!', `"${latestItem.title}" threw: ${err.message}`);
       useAppStore.getState().updateQueueItem(item.url, { status: 'Error' });
     }
 
@@ -127,7 +216,7 @@ export async function downloadAll() {
     if (i === queue.length - 1 && !useAppStore.getState().downloadCancelled) {
       await new Promise((r) => setTimeout(r, 5000));
       useAppStore.getState().clearNowPlaying();
-      useAppStore.getState().clearBackgroundThumbnail();
+      restoreAlbumBackground();
       setTimeout(() => {
         useAppStore.getState().setTotalProgress({
           visible: false,
@@ -141,7 +230,7 @@ export async function downloadAll() {
 
   if (useAppStore.getState().downloadCancelled) {
     useAppStore.getState().clearNowPlaying();
-    useAppStore.getState().clearBackgroundThumbnail();
+    restoreAlbumBackground();
     setTimeout(() => {
       useAppStore.getState().setTotalProgress({
         visible: false,
