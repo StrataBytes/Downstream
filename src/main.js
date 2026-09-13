@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, ipcMain, shell, dialog, protocol, net } = requ
 const path = require('path');
 const os = require('os');
 const { spawn, execFile } = require('child_process');
+const { Readable } = require('stream');
 const { redownloadYtDlp, redownloadFfmpeg, unblockFile, describeBinaryFailure } = require('./binaryRecovery');
 
 // in-app debug log forwarding.
@@ -141,7 +142,53 @@ const ytdl = require('ytdl-core');
 
 const ffmpegPath = platform.getFFmpegPath();
 const ffmpegDir = platform.getFFmpegDir();
-const ytDlpPath = platform.getYtDlpPath();
+const bundledYtDlpPath = platform.getYtDlpPath();
+// The copy inside the application bundle is immutable on macOS and can be replaced by
+// an installer update on Windows. Keep the auto-updating copy in userData instead.
+// That lets yt-dlp repair YouTube extractor changes without modifying or invalidating
+// the packaged application, while retaining the bundled executable as a fallback.
+let ytDlpPath = bundledYtDlpPath;
+let ytDlpManagedPath = null;
+let ytDlpUpdatePromise = null;
+let ytDlpExec = require('yt-dlp-exec').create(ytDlpPath);
+const YT_DLP_DEFAULT_TARGET = 'nightly';
+const YT_DLP_CHANNEL_REPOS = {
+    stable: 'yt-dlp/yt-dlp',
+    nightly: 'yt-dlp/yt-dlp-nightly-builds',
+    master: 'yt-dlp/yt-dlp-master-builds',
+};
+let ytDlpUpdateTarget = YT_DLP_DEFAULT_TARGET;
+
+function useYtDlp(binaryPath) {
+    ytDlpPath = binaryPath;
+    ytDlpExec = require('yt-dlp-exec').create(binaryPath);
+    console.log('yt-dlp path:', binaryPath);
+}
+
+function ytDlpSettingsPath() {
+    return path.join(app.getPath('userData'), 'yt-dlp-settings.json');
+}
+
+function isValidYtDlpTarget(target) {
+    if (target === YT_DLP_DEFAULT_TARGET) return true;
+    const match = typeof target === 'string' && target.match(/^(stable|nightly|master)@([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/);
+    return !!match && Object.hasOwn(YT_DLP_CHANNEL_REPOS, match[1]);
+}
+
+function loadYtDlpUpdateTarget() {
+    try {
+        const saved = JSON.parse(fs.readFileSync(ytDlpSettingsPath(), 'utf8'));
+        if (isValidYtDlpTarget(saved?.target)) ytDlpUpdateTarget = saved.target;
+    } catch { /* first launch or an unreadable settings file: use the safe default */ }
+}
+
+function saveYtDlpUpdateTarget() {
+    const settingsPath = ytDlpSettingsPath();
+    fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+    const tempPath = `${settingsPath}.tmp`;
+    fs.writeFileSync(tempPath, JSON.stringify({ target: ytDlpUpdateTarget }, null, 2));
+    fs.renameSync(tempPath, settingsPath);
+}
 
 // ensures ffprobe sits next to ffmpeg so yt-dlp can find both via --ffmpeg-location.
 const ffprobeTarget = path.join(ffmpegDir,
@@ -158,29 +205,145 @@ if (!fs.existsSync(ffprobeTarget)) {
 if (process.platform === 'darwin') {
     try { fs.chmodSync(ffmpegPath, 0o755); } catch {}
     try { fs.chmodSync(ffprobeTarget, 0o755); } catch {}
-    try { fs.chmodSync(ytDlpPath, 0o755); } catch {}
+    try { fs.chmodSync(bundledYtDlpPath, 0o755); } catch {}
 }
 
 // strips any leftover mark-of-the-web from an existing install (e.g. upgrading from an older build) so smartscreen has one less reason to treat these as untrusted.
 unblockFile(ffmpegPath);
 unblockFile(ffprobeTarget);
-unblockFile(ytDlpPath);
-
-const ytDlpExec = require('yt-dlp-exec').create(ytDlpPath);
+unblockFile(bundledYtDlpPath);
 
 console.log('FFmpeg path:', ffmpegPath);
-console.log('yt-dlp path:', ytDlpPath);
+console.log('yt-dlp bundled path:', bundledYtDlpPath);
+
+// yt-dlp's official guidance is to use the nightly channel when a site changes and
+// the stable build breaks. Keep that auto-updating copy in userData so packaged app
+// resources remain untouched, and retain the bundled executable as a fallback.
+function copyBundledYtDlpToManagedPath() {
+    if (!ytDlpManagedPath || !fs.existsSync(bundledYtDlpPath)) {
+        throw new Error('Bundled yt-dlp is unavailable.');
+    }
+    fs.mkdirSync(path.dirname(ytDlpManagedPath), { recursive: true });
+    fs.copyFileSync(bundledYtDlpPath, ytDlpManagedPath);
+    try { fs.chmodSync(ytDlpManagedPath, 0o755); } catch {}
+    unblockFile(ytDlpManagedPath);
+}
+
+function updateManagedYtDlp(target = ytDlpUpdateTarget) {
+    return new Promise((resolve, reject) => {
+        const child = execFile(
+            ytDlpManagedPath,
+            ['--update-to', target],
+            { timeout: 45000, windowsHide: true, maxBuffer: 1024 * 1024 },
+            (err, stdout, stderr) => {
+                if (err) {
+                    reject(new Error((stderr || stdout || err.message).trim()));
+                    return;
+                }
+                const result = (stdout || stderr || '').trim().replace(/\s+/g, ' ');
+                console.log(`[yt-dlp] ${result || `${target} update check complete.`}`);
+                try { fs.chmodSync(ytDlpManagedPath, 0o755); } catch {}
+                unblockFile(ytDlpManagedPath);
+                resolve();
+            },
+        );
+        child.on('error', reject);
+    });
+}
+
+async function initializeYtDlpUpdater() {
+    loadYtDlpUpdateTarget();
+    const extension = process.platform === 'win32' ? '.exe' : '';
+    ytDlpManagedPath = path.join(app.getPath('userData'), 'binaries', `yt-dlp${extension}`);
+    if (!fs.existsSync(ytDlpManagedPath)) {
+        console.log('[yt-dlp] installing managed copy...');
+        copyBundledYtDlpToManagedPath();
+    }
+    useYtDlp(ytDlpManagedPath);
+    console.log(`[yt-dlp] checking official ${ytDlpUpdateTarget} release...`);
+    await updateManagedYtDlp();
+}
+
+function getManagedYtDlpVersion() {
+    return new Promise((resolve, reject) => {
+        execFile(ytDlpPath, ['--version'], { timeout: 10000, windowsHide: true }, (err, stdout, stderr) => {
+            if (err) {
+                reject(new Error((stderr || stdout || err.message).trim()));
+                return;
+            }
+            resolve(stdout.trim());
+        });
+    });
+}
+
+async function getYtDlpInfo() {
+    if (ytDlpUpdatePromise) await ytDlpUpdatePromise;
+    if (!(await ensureYtDlpBinary())) throw new Error('yt-dlp is unavailable.');
+    return {
+        version: await getManagedYtDlpVersion(),
+        target: ytDlpUpdateTarget,
+        automatic: ytDlpUpdateTarget === YT_DLP_DEFAULT_TARGET,
+    };
+}
+
+async function getYtDlpAvailableVersions() {
+    const entries = await Promise.all(Object.entries(YT_DLP_CHANNEL_REPOS).map(async ([channel, repo]) => {
+        const response = await net.fetch(`https://api.github.com/repos/${repo}/releases?per_page=12`, {
+            headers: { 'User-Agent': 'Downstream yt-dlp version picker' },
+        });
+        if (!response.ok) throw new Error(`${channel} releases returned HTTP ${response.status}`);
+        const releases = await response.json();
+        return releases
+            .filter((release) => !release.draft && typeof release.tag_name === 'string')
+            .filter((release) => isValidYtDlpTarget(`${channel}@${release.tag_name}`))
+            .map((release) => ({
+                id: `${channel}@${release.tag_name}`,
+                channel,
+                version: release.tag_name,
+                publishedAt: release.published_at,
+            }));
+    }));
+    return entries.flat();
+}
+
+async function setYtDlpVersionOverride(target) {
+    if (!isValidYtDlpTarget(target)) throw new Error('That yt-dlp release is not an official supported option.');
+    if (ytDlpUpdatePromise) await ytDlpUpdatePromise;
+    if (!(await ensureYtDlpBinary())) throw new Error('yt-dlp is unavailable.');
+    await updateManagedYtDlp(target);
+    ytDlpUpdateTarget = target;
+    saveYtDlpUpdateTarget();
+    return getYtDlpInfo();
+}
 
 // binary health and recovery.
 // windows defender/smartscreen can flag yt-dlp.exe (an unsigned pyinstaller build) as unrecognized and quarantine or delete it mid-session.
 // every code path that shells out to yt-dlp/ffmpeg checks the binary is on disk first, and if not, tries once to restore it automatically before giving up with a message the renderer can show the user.
 let ytDlpRecovery = null;
-function ensureYtDlpBinary() {
-    if (fs.existsSync(ytDlpPath)) return Promise.resolve(true);
+async function ensureYtDlpBinary() {
+    // A click immediately after launch uses the newest binary, not the stale bundled
+    // fallback, while an offline/failed update still leaves the last working copy.
+    if (ytDlpUpdatePromise) await ytDlpUpdatePromise;
+    if (fs.existsSync(ytDlpPath)) return true;
     if (ytDlpRecovery) return ytDlpRecovery;
     console.warn('[recovery] yt-dlp is missing (likely removed by Windows Defender/SmartScreen) — attempting automatic restore...');
-    ytDlpRecovery = redownloadYtDlp(ytDlpPath)
-        .then(() => { console.log('[recovery] yt-dlp restored successfully.'); return true; })
+    ytDlpRecovery = (async () => {
+        // Re-seed the managed copy from the package-managed fallback on every
+        // platform. Windows can still use the pinned recovery download if the bundle
+        // was also removed by antivirus.
+        if (ytDlpManagedPath && fs.existsSync(bundledYtDlpPath)) {
+            copyBundledYtDlpToManagedPath();
+            useYtDlp(ytDlpManagedPath);
+            console.log('[recovery] yt-dlp restored from the bundled fallback.');
+            return true;
+        }
+        if (process.platform === 'win32') {
+            await redownloadYtDlp(ytDlpPath);
+            console.log('[recovery] yt-dlp restored successfully.');
+            return true;
+        }
+        return false;
+    })()
         .catch((err) => { console.error('[recovery] failed to restore yt-dlp:', err.message); return false; })
         .finally(() => { ytDlpRecovery = null; });
     return ytDlpRecovery;
@@ -305,6 +468,12 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 app.whenReady().then(() => {
+    // Do this in the background: startup remains fast, while every yt-dlp IPC handler
+    // waits for the one in-flight update before invoking the executable.
+    ytDlpUpdatePromise = initializeYtDlpUpdater().catch((err) => {
+        console.warn('[yt-dlp] nightly update unavailable; using the last installed copy:', err.message);
+    });
+
     // tracks which media paths have already been logged so streaming (many range requests per file) doesn't flood the outlog.
     const seenMediaPaths = new Set();
 
@@ -319,7 +488,7 @@ app.whenReady().then(() => {
             const fileSize = stat.size;
             const rangeHeader = request.headers.get('range');
             const ext = path.extname(filePath).toLowerCase();
-            const mimeMap = { '.flac': 'audio/flac', '.wav': 'audio/wav', '.mp4': 'video/mp4' };
+            const mimeMap = { '.flac': 'audio/flac', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.mp4': 'video/mp4' };
             const mime = mimeMap[ext] || 'audio/mpeg';
 
             if (!seenMediaPaths.has(filePath)) {
@@ -331,13 +500,19 @@ app.whenReady().then(() => {
                 const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
                 if (match) {
                     const start = parseInt(match[1], 10);
-                    const end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
+                    const end = Math.min(match[2] ? parseInt(match[2], 10) : fileSize - 1, fileSize - 1);
+                    if (start >= fileSize || end < start) {
+                        return new Response(null, {
+                            status: 416,
+                            headers: { 'Content-Range': `bytes */${fileSize}` },
+                        });
+                    }
                     const length = end - start + 1;
-                    const buf = Buffer.alloc(length);
-                    const fd = fs.openSync(filePath, 'r');
-                    fs.readSync(fd, buf, 0, length, start);
-                    fs.closeSync(fd);
-                    return new Response(buf, {
+                    // Do not buffer a requested range: Chromium commonly asks for
+                    // bytes=0- on an initial MP4 request, which is the whole file.
+                    // Streaming keeps even multi-gigabyte media at constant memory.
+                    const stream = Readable.toWeb(fs.createReadStream(filePath, { start, end }));
+                    return new Response(stream, {
                         status: 206,
                         headers: {
                             'Content-Range': `bytes ${start}-${end}/${fileSize}`,
@@ -351,7 +526,11 @@ app.whenReady().then(() => {
                 }
             }
 
-            return new Response(fs.readFileSync(filePath), {
+            // Some containers begin with a non-range request. This must be streamed
+            // too; fs.readFileSync would allocate the entire media file in Electron's
+            // main process before the renderer can begin playback.
+            const stream = Readable.toWeb(fs.createReadStream(filePath));
+            return new Response(stream, {
                 status: 200,
                 headers: {
                     'Accept-Ranges': 'bytes',
@@ -415,11 +594,49 @@ function getFormatString(quality, format) {
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+// The queue is serial, so there can only ever be one yt-dlp process to stop. Keep a
+// direct handle to it instead of relying on the renderer's between-item cancel flag.
+let activeDownload = null;
+let downloadCancelRequested = false;
+
+function downloadCancelledError() {
+    const error = new Error('Download cancelled');
+    error.code = 'DOWNLOAD_CANCELLED';
+    return error;
+}
+
+function cancelActiveDownload() {
+    const running = activeDownload;
+    downloadCancelRequested = true;
+    if (!running?.proc?.pid) return false;
+
+    running.cancelled = true;
+    const { proc } = running;
+    console.log(`[download] cancelling yt-dlp process ${proc.pid}...`);
+
+    if (process.platform === 'win32') {
+        // yt-dlp may be waiting on ffmpeg during conversion. /T terminates that
+        // child process too, which proc.kill() alone does not guarantee on Windows.
+        execFile('taskkill', ['/pid', String(proc.pid), '/t', '/f'], { windowsHide: true }, () => {});
+    } else {
+        // The process is spawned detached on Unix so its PID is also its process
+        // group. This stops yt-dlp and any ffmpeg child it started.
+        try { process.kill(-proc.pid, 'SIGTERM'); } catch { try { proc.kill('SIGTERM'); } catch {} }
+        setTimeout(() => {
+            if (activeDownload === running) {
+                try { process.kill(-proc.pid, 'SIGKILL'); } catch { try { proc.kill('SIGKILL'); } catch {} }
+            }
+        }, 1500).unref();
+    }
+    return true;
+}
+
 async function withRetry(fn, maxRetries = 3, baseDelay = 2000) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             return await fn();
         } catch (error) {
+            if (error?.code === 'DOWNLOAD_CANCELLED') throw error;
             if (attempt === maxRetries) {
                 throw error;
             }
@@ -431,6 +648,7 @@ async function withRetry(fn, maxRetries = 3, baseDelay = 2000) {
 }
 
 ipcMain.handle('download-video', async (event, { url, quality, format, outputDir: customOutputDir }) => {
+    downloadCancelRequested = false;
     if (!(await ensureYtDlpBinary())) {
         event.sender.send('download-error', { url, error: BINARY_UNAVAILABLE_YTDLP });
         return { success: false, error: BINARY_UNAVAILABLE_YTDLP };
@@ -500,9 +718,15 @@ ipcMain.handle('download-video', async (event, { url, quality, format, outputDir
 
     try {
         await withRetry(async () => {
+            if (downloadCancelRequested) throw downloadCancelledError();
             finalizingSent = false;
             return new Promise((resolve, reject) => {
-                const proc = spawn(ytDlpPath, args);
+                const proc = spawn(ytDlpPath, args, {
+                    detached: process.platform !== 'win32',
+                    windowsHide: true,
+                });
+                const running = { proc, cancelled: false };
+                activeDownload = running;
                 let stderrTail = '';
                 proc.stdout.on('data', parseProgress);
                 proc.stderr.on('data', (chunk) => {
@@ -511,10 +735,17 @@ ipcMain.handle('download-video', async (event, { url, quality, format, outputDir
                     stderrTail = (stderrTail + chunk.toString()).slice(-1500);
                 });
                 proc.on('error', (e) => {
+                    if (activeDownload === running) activeDownload = null;
                     console.error('[download] spawn error:', e.message);
-                    reject(e);
+                    reject(running.cancelled ? downloadCancelledError() : e);
                 });
                 proc.on('close', (code) => {
+                    if (activeDownload === running) activeDownload = null;
+                    if (running.cancelled) {
+                        console.log('[download] cancelled.');
+                        reject(downloadCancelledError());
+                        return;
+                    }
                     if (code === 0) resolve();
                     else {
                         const tail = stderrTail.trim();
@@ -531,12 +762,17 @@ ipcMain.handle('download-video', async (event, { url, quality, format, outputDir
         console.log(`[download] complete ${cleanUrl}`);
         return { success: true };
     } catch (dlError) {
+        if (dlError?.code === 'DOWNLOAD_CANCELLED') {
+            return { success: false, cancelled: true };
+        }
         const message = describeBinaryFailure('yt-dlp', dlError);
         console.error(`[download] failed ${url}: ${message}`);
         event.sender.send('download-error', { url, error: message });
         return { success: false, error: message };
     }
 });
+
+ipcMain.handle('cancel-download', async () => ({ cancelled: cancelActiveDownload() }));
 
 ipcMain.handle('get-video-info', async (event, url) => {
     const cleanUrl = cleanYouTubeUrl(url);
@@ -886,6 +1122,33 @@ ipcMain.handle('check-ffmpeg', async () => {
 
 ipcMain.handle('check-ytdlp', async () => {
     return ensureYtDlpBinary();
+});
+
+ipcMain.handle('get-ytdlp-info', async () => {
+    try {
+        return await getYtDlpInfo();
+    } catch (err) {
+        console.error('[yt-dlp] could not read active version:', err.message);
+        return { error: err.message };
+    }
+});
+
+ipcMain.handle('get-ytdlp-versions', async () => {
+    try {
+        return { versions: await getYtDlpAvailableVersions() };
+    } catch (err) {
+        console.error('[yt-dlp] could not fetch available versions:', err.message);
+        return { error: err.message, versions: [] };
+    }
+});
+
+ipcMain.handle('set-ytdlp-version', async (_event, target) => {
+    try {
+        return await setYtDlpVersionOverride(target);
+    } catch (err) {
+        console.error('[yt-dlp] version change failed:', err.message);
+        return { error: err.message };
+    }
 });
 
 ipcMain.handle('check-network', async () => {

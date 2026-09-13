@@ -25,10 +25,15 @@ module.exports = {
     // ad-hoc signs on macos (no apple developer account needed).
     // a fully unsigned bundle makes macos run its xprotect/syspolicyd first-exec assessment on every executable in the bundle with nothing cacheable by code-hash, which causes a long first-launch hang on every reinstall.
     // ad-hoc signatures give each binary a cdhash the system can assess once and cache. only applies when building on darwin.
+    // hardenedRuntime must stay off: @electron/osx-sign defaults it to true, which enables macOS Library Validation.
+    // library validation requires every loaded framework to share the main executable's Team ID, but ad-hoc signatures have no Team ID at all -- so a hardened-runtime + ad-hoc build can never load its own Electron Framework.framework.
+    // this was silent on Ventura but hard-crashed on Monterey at launch with a dyld "Library not loaded" error (see CrashLog(montery)/*.ips). Hardened runtime only matters for notarized, real-Developer-ID builds anyway, which this isn't.
+    // NOTE: @electron/osx-sign v1 ignores a top-level hardenedRuntime (legacy electron-osx-sign API); it must come from optionsForFile, whose defaults hardcode hardenedRuntime: true.
     ...(process.platform === 'darwin' ? {
       osxSign: {
         identity: '-',
         identityValidation: false,
+        optionsForFile: () => ({ hardenedRuntime: false }),
       },
     } : {}),
     icon: process.platform === 'darwin'

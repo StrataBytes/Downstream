@@ -125,6 +125,114 @@ function ProfileTile({ profile, active, expanded, onSelect, onToggleExpand, stor
   );
 }
 
+function YtDlpVersionPicker() {
+  const [info, setInfo] = useState(null);
+  const [versions, setVersions] = useState([]);
+  const [loadingInfo, setLoadingInfo] = useState(true);
+  const [loadingVersions, setLoadingVersions] = useState(false);
+  const [switchingTo, setSwitchingTo] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let live = true;
+    window.electronAPI.getYtDlpInfo().then((result) => {
+      if (!live) return;
+      if (result?.error) setError(result.error);
+      else setInfo(result);
+      setLoadingInfo(false);
+    }).catch(() => {
+      if (live) {
+        setError('Could not read the active yt-dlp version.');
+        setLoadingInfo(false);
+      }
+    });
+    return () => { live = false; };
+  }, []);
+
+  const fetchVersions = async () => {
+    setLoadingVersions(true);
+    setError(null);
+    try {
+      const result = await window.electronAPI.getYtDlpVersions();
+      if (result?.error) setError(result.error);
+      else setVersions(result?.versions || []);
+    } catch {
+      setError('Could not fetch official yt-dlp releases.');
+    } finally {
+      setLoadingVersions(false);
+    }
+  };
+
+  const selectVersion = async (target) => {
+    setSwitchingTo(target);
+    setError(null);
+    try {
+      const result = await window.electronAPI.setYtDlpVersion(target);
+      if (result?.error) setError(result.error);
+      else setInfo(result);
+    } catch {
+      setError('Could not change the yt-dlp version.');
+    } finally {
+      setSwitchingTo(null);
+    }
+  };
+
+  const activeLabel = loadingInfo
+    ? 'Checking active version...'
+    : info?.version || 'Unavailable';
+  const targetLabel = info?.automatic
+    ? 'Automatic nightly updates'
+    : `Pinned to ${info?.target || 'an unknown release'}`;
+
+  return (
+    <div className="advanced-ytdlp">
+      <div className="advanced-ytdlp-heading">
+        <div>
+          <span className="advanced-ytdlp-title">YT-DLP</span>
+          <span className="advanced-ytdlp-desc">Controls the downloader executable used by Downstream.</span>
+        </div>
+        <span className="advanced-ytdlp-version">{activeLabel}</span>
+      </div>
+      <div className="advanced-ytdlp-status">{targetLabel}</div>
+
+      <div className="advanced-ytdlp-actions">
+        <button className="advanced-action-button" onClick={fetchVersions} disabled={loadingVersions || !!switchingTo}>
+          {loadingVersions ? 'Fetching versions...' : 'Fetch available versions'}
+        </button>
+        {!info?.automatic && (
+          <button className="advanced-action-button advanced-action-button-muted" onClick={() => selectVersion('nightly')} disabled={!!switchingTo}>
+            {switchingTo === 'nightly' ? 'Restoring automatic updates...' : 'Use automatic nightly updates'}
+          </button>
+        )}
+      </div>
+
+      {error && <p className="advanced-ytdlp-error">{error}</p>}
+
+      {versions.length > 0 && (
+        <div className="advanced-version-list">
+          <p className="advanced-version-list-note">Choosing a release pins Downstream to it until you restore automatic nightly updates.</p>
+          {versions.map((release) => {
+            const selected = info?.target === release.id;
+            const changing = switchingTo === release.id;
+            return (
+              <button
+                key={release.id}
+                className={`advanced-version-option${selected ? ' advanced-version-option-selected' : ''}`}
+                onClick={() => selectVersion(release.id)}
+                disabled={!!switchingTo || selected}
+              >
+                <span>{release.version}</span>
+                <small>{release.channel}{selected ? ' · Selected' : ''}</small>
+                {changing && <em>Switching...</em>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function OptionsModal() {
   const optionsOpen = useAppStore((s) => s.optionsOpen);
   const setOptionsOpen = useAppStore((s) => s.setOptionsOpen);
@@ -132,6 +240,8 @@ export default function OptionsModal() {
   const setRenderProfile = useAppStore((s) => s.setRenderProfile);
   const store = useAppStore();
   const [expandedId, setExpandedId] = useState(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [advancedAcknowledged, setAdvancedAcknowledged] = useState(false);
 
   // locked drawers can't stay open, collapse if the user switches away from it.
   useEffect(() => {
@@ -199,6 +309,41 @@ export default function OptionsModal() {
                 </label>
               ))}
             </div>
+          </section>
+
+          <div className="behavior-divider" />
+
+          <section className="behavior-section advanced-options-section">
+            <button
+              className={`advanced-options-toggle${advancedOpen ? ' advanced-options-toggle-open' : ''}`}
+              onClick={() => {
+                const nextOpen = !advancedOpen;
+                setAdvancedOpen(nextOpen);
+                if (nextOpen) setAdvancedAcknowledged(false);
+              }}
+              aria-expanded={advancedOpen}
+            >
+              <span>
+                <strong>Advanced Options</strong>
+                <small>Downloader recovery and compatibility controls</small>
+              </span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {advancedOpen && (
+              <div className="advanced-options-drawer">
+                {!advancedAcknowledged ? (
+                  <div className="advanced-warning">
+                    <p>Changing advanced settings can make downloads fail or leave the app on an unstable downloader build. Only change them when troubleshooting.</p>
+                    <button className="advanced-got-it" onClick={() => setAdvancedAcknowledged(true)}>Got it</button>
+                  </div>
+                ) : (
+                  <YtDlpVersionPicker />
+                )}
+              </div>
+            )}
           </section>
         </div>
       </div>

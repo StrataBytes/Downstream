@@ -13,6 +13,9 @@ const useAppStore = create((set) => ({
   currentView: 'home',
   setCurrentView: (view) => set({ currentView: view }),
 
+  homeIdleMode: false,
+  setHomeIdleMode: (val) => set({ homeIdleMode: val }),
+
   versionInfo: null,
   setVersionInfo: (info) => set({ versionInfo: info }),
   checkUpdatesOnStart: localStorage.getItem('checkUpdatesOnStart') !== 'false',
@@ -131,10 +134,19 @@ const useAppStore = create((set) => ({
     set({ cancelModal: { open: false, remainingCount: 0 } }),
 
   backgroundThumbnail: null,
-  setBackgroundThumbnail: (url) => set({ backgroundThumbnail: url, backgroundVideo: null }),
+  setBackgroundThumbnail: (url) => set({ backgroundThumbnail: url, backgroundVideo: null, backgroundVideoReady: false }),
   backgroundVideo: null,
-  setBackgroundVideo: (url) => set({ backgroundVideo: url, backgroundThumbnail: null }),
-  clearBackgroundThumbnail: () => set({ backgroundThumbnail: null, backgroundVideo: null }),
+  setBackgroundVideo: (url) => set({ backgroundVideo: url, backgroundThumbnail: null, backgroundVideoReady: false }),
+  clearBackgroundThumbnail: () => set({ backgroundThumbnail: null, backgroundVideo: null, backgroundVideoReady: false }),
+  // true once the active background video has actually painted a frame, so dependent
+  // effects (starfield crossfade) don't react to a video src that hasn't loaded yet.
+  backgroundVideoReady: false,
+  setBackgroundVideoReady: (val) => set({ backgroundVideoReady: val }),
+
+  // tracks the 5s no-activity idle state of the immersive player widget so other
+  // immersive-mode visuals (starfield) can react without re-implementing the timer.
+  immersiveIdle: false,
+  setImmersiveIdle: (val) => set({ immersiveIdle: val }),
 
   isLoading: false,
   loadingText: 'Loading...',
@@ -353,23 +365,32 @@ const useAppStore = create((set) => ({
   toggleDebugConsole: () => set((s) => ({ debugConsoleOpen: !s.debugConsoleOpen })),
 
   renderProfile: localStorage.getItem('renderProfile') || 'standard',
-  setRenderProfile: (profile) =>
+  setRenderProfile: (profile, { automatic = false } = {}) =>
     set((s) => {
       localStorage.setItem('renderProfile', profile);
       const updates = { renderProfile: profile };
 
-      // first time entering lite, defaults its sub-effects on so the switch is meaningful.
+      // First-time Lite Mode defaults avoid expensive effects. Hardware detection
+      // deliberately leaves the visualizer alone; that 60 fps loop is only opted
+      // out of when the user explicitly chooses Lite Mode.
       const untouched = !s.liteDisableBlur && !s.liteDisableAnimations &&
         !s.liteDisableVisualizer && !s.liteDisableVideoBackground;
       if (profile === 'lite' && untouched) {
-        ['liteDisableBlur', 'liteDisableAnimations', 'liteDisableVisualizer', 'liteDisableVideoBackground']
+        const defaults = ['liteDisableBlur', 'liteDisableAnimations', 'liteDisableVideoBackground'];
+        if (!automatic) defaults.push('liteDisableVisualizer');
+        defaults
           .forEach((key) => localStorage.setItem(key, 'true'));
         Object.assign(updates, {
           liteDisableBlur: true,
           liteDisableAnimations: true,
-          liteDisableVisualizer: true,
           liteDisableVideoBackground: true,
+          ...(automatic ? {} : { liteDisableVisualizer: true }),
         });
+      } else if (profile === 'lite' && !automatic && !s.liteDisableVisualizer) {
+        // An explicit Lite Mode selection always includes the visualizer toggle,
+        // even when the other Lite defaults were already applied automatically.
+        localStorage.setItem('liteDisableVisualizer', 'true');
+        updates.liteDisableVisualizer = true;
       }
 
       return updates;

@@ -45,6 +45,8 @@ export default function MusicPlayer() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  const isImmersive = playerViewMode === 'immersive';
+
   const loadFolder = async (folder) => {
     setMusicFolder(folder);
     const state = useAppStore.getState();
@@ -148,13 +150,12 @@ export default function MusicPlayer() {
   const isCommander = playerViewMode === 'commander';
 
   return (
-    <div className={`music-player${isCommander ? ' music-player-commander' : ''}`}>
+    <div className={`music-player${isCommander ? ' music-player-commander' : ''}${isImmersive ? ' music-player-immersive' : ''}`}>
       <ScrollingText
         text={musicCurrent ? musicCurrent.name : 'No track selected'}
         variant="ambient"
         className="music-track-name"
       />
-
       <div className="music-controls">
         <button
           className={`btn-music-toggle${musicShuffle ? ' btn-music-toggle-active' : ''}`}
@@ -232,13 +233,13 @@ export default function MusicPlayer() {
       </div>
 
       <div className="music-actions">
-        <div className="music-folder-name" onClick={() => setMusicFolderView(true)} title="Change folder">
+        <button type="button" className="music-folder-name" onClick={() => setMusicFolderView(true)} title="Change folder">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
           </svg>
           <span>{musicFolder.split(/[/\\]/).pop()}</span>
-        </div>
-        <div
+        </button>
+        <button type="button"
           className="music-folder-name"
           onClick={() => setMusicLibraryOpen(!musicLibraryOpen)}
           title="Toggle library"
@@ -252,8 +253,8 @@ export default function MusicPlayer() {
             <line x1="3" y1="18" x2="3.01" y2="18" />
           </svg>
           <span>Library</span>
-        </div>
-        <div
+        </button>
+        <button type="button"
           className="music-folder-name"
           onClick={() => setEqOpen(!eqOpen)}
           title="Toggle equalizer"
@@ -270,8 +271,8 @@ export default function MusicPlayer() {
             <line x1="17" y1="16" x2="23" y2="16" />
           </svg>
           <span>EQ</span>
-        </div>
-        <div
+        </button>
+        <button type="button"
           className={`music-folder-name${musicNormalize ? ' music-folder-name-active' : ''}`}
           onClick={toggleMusicNormalize}
           title="Volume normalization"
@@ -283,8 +284,8 @@ export default function MusicPlayer() {
             <line x1="20" y1="7" x2="20" y2="17" />
           </svg>
           <span>Norm</span>
-        </div>
-        <div
+        </button>
+        <button type="button"
           className={`music-folder-name${behaviorOpen ? ' music-folder-name-active' : ''}`}
           onClick={() => setBehaviorOpen(!behaviorOpen)}
           title="Playback behavior"
@@ -294,7 +295,7 @@ export default function MusicPlayer() {
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z" />
           </svg>
           <span>Behavior</span>
-        </div>
+        </button>
       </div>
 
       </div>

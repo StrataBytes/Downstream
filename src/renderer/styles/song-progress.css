@@ -7,8 +7,13 @@
   height: 3px;
   z-index: 100;
   background: rgba(255, 255, 255, 0.06);
-  cursor: pointer;
+  cursor: default;
+  touch-action: none;
   transition: height 0.2s ease, background 0.2s ease;
+}
+
+.song-progress-bar.song-progress-dragging {
+  cursor: grabbing;
 }
 
 .song-progress-bar::before {
@@ -25,6 +30,70 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+.song-progress-preview {
+  position: absolute;
+  /* Keep the label comfortably below the top-edge cursor target. */
+  top: 22px;
+  transform: translateX(-50%);
+  z-index: 1;
+  padding: 4px 7px;
+  border: 1px solid rgba(76, 208, 193, 0.17);
+  border-radius: 5px;
+  background: rgba(18, 29, 38, 0.9);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  color: rgba(214, 241, 238, 0.78);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.62em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.song-progress-preview::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  transform: translateX(-50%) rotate(45deg);
+  border-top: 1px solid rgba(76, 208, 193, 0.17);
+  border-left: 1px solid rgba(76, 208, 193, 0.17);
+  background: rgba(18, 29, 38, 0.9);
+}
+
+/* Initial media preparation has no progress fill to animate. Sweep the empty track
+   itself so very large files visibly communicate that their metadata is loading. */
+.song-progress-bar.song-progress-preparing::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 28%, rgba(158, 245, 236, 0.72) 50%, transparent 72%);
+  background-size: 200% 100%;
+  animation: song-progress-shimmer 1.2s linear infinite;
+}
+
+/* On a completed load, retain the exact computed sweep position captured by the
+   component and carry it off the right edge instead of removing it mid-motion. */
+@keyframes song-progress-shimmer-exit {
+  to {
+    background-position: 200% center;
+    opacity: 0;
+  }
+}
+.song-progress-bar.song-progress-preparing-exit::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 28%, rgba(158, 245, 236, 0.72) 50%, transparent 72%);
+  background-size: 200% 100%;
+  background-position: var(--song-progress-shimmer-position, 0% 50%);
+  animation: song-progress-shimmer-exit 0.36s linear forwards;
+}
+
 .song-progress-fill {
   height: 100%;
   background: #4cd0c1;
@@ -37,8 +106,8 @@
   background: #5ee8d8;
 }
 
-/* same sweep as the downloader's "finalizing" stage, signals "still working" while a post-seek buffer/disk check is in flight.
-   confined to the already-filled width so it never implies more progress than there is. */
+/* Same sweep as the downloader's "finalizing" stage, signals "still working" while a post-seek buffer/disk check is in flight.
+   Confined to the already-filled width so it never implies more progress than there is. */
 @keyframes song-progress-shimmer {
   0%   { background-position: -200% center; }
   100% { background-position: 200% center; }

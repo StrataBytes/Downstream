@@ -24,8 +24,7 @@ const VIEW_MODES = [
   {
     id: 'immersive',
     name: 'Immersive',
-    description: 'Coming soon.',
-    disabled: true,
+    description: 'A compact bottom player that fades away while listening. Move the mouse to bring it back.',
   },
 ];
 
@@ -194,39 +193,31 @@ export default function BehaviorModal() {
   const loudnessScanningTrack = useAppStore((s) => s.loudnessScanningTrack);
   const store = useAppStore();
 
-  const [activeSection, setActiveSection] = useState(SECTIONS[0].id);
   const [confirmingMemoryReset, setConfirmingMemoryReset] = useState(false);
-  const bodyRef = useRef(null);
+  const [highlightedSection, setHighlightedSection] = useState(null);
   const sectionRefs = useRef({});
+  const highlightTimerRef = useRef(null);
+  const highlightFrameRef = useRef(null);
+
+  useEffect(() => () => {
+    clearTimeout(highlightTimerRef.current);
+    cancelAnimationFrame(highlightFrameRef.current);
+  }, []);
 
   const handleDeleteMemory = () => {
     clearLoudnessCache();
     setConfirmingMemoryReset(false);
   };
 
-  // highlights whichever section is currently being read.
-  // a section counts as "active" once it's scrolled into the top band of the panel, so the nav tracks scroll position as well as clicks.
-  useEffect(() => {
-    if (!behaviorOpen) return;
-    const root = bodyRef.current;
-    if (!root) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting);
-        if (visible.length === 0) return;
-        visible.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        const id = visible[0].target.dataset.sectionId;
-        if (id) setActiveSection(id);
-      },
-      { root, rootMargin: '0px 0px -70% 0px', threshold: 0 }
-    );
-    Object.values(sectionRefs.current).forEach((el) => el && observer.observe(el));
-    return () => observer.disconnect();
-  }, [behaviorOpen]);
-
   const scrollToSection = (id) => {
-    setActiveSection(id);
+    clearTimeout(highlightTimerRef.current);
+    cancelAnimationFrame(highlightFrameRef.current);
+    setHighlightedSection(null);
     sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    highlightFrameRef.current = requestAnimationFrame(() => {
+      setHighlightedSection(id);
+      highlightTimerRef.current = setTimeout(() => setHighlightedSection(null), 1600);
+    });
   };
 
   if (!behaviorOpen) return null;
@@ -249,7 +240,7 @@ export default function BehaviorModal() {
             {SECTIONS.map((section) => (
               <button
                 key={section.id}
-                className={`behavior-nav-btn${activeSection === section.id ? ' behavior-nav-btn-active' : ''}`}
+                className="behavior-nav-btn"
                 onClick={() => scrollToSection(section.id)}
               >
                 {section.label}
@@ -257,9 +248,9 @@ export default function BehaviorModal() {
             ))}
           </nav>
 
-          <div className="behavior-body" ref={bodyRef}>
+          <div className="behavior-body">
           <section
-            className="behavior-section"
+            className={`behavior-section${highlightedSection === 'view-mode' ? ' behavior-section-focus' : ''}`}
             data-section-id="view-mode"
             ref={(el) => { sectionRefs.current['view-mode'] = el; }}
           >
@@ -288,7 +279,7 @@ export default function BehaviorModal() {
           <div className="behavior-divider" />
 
           <section
-            className="behavior-section"
+            className={`behavior-section${highlightedSection === 'startup' ? ' behavior-section-focus' : ''}`}
             data-section-id="startup"
             ref={(el) => { sectionRefs.current['startup'] = el; }}
           >
@@ -302,7 +293,7 @@ export default function BehaviorModal() {
           <div className="behavior-divider" />
 
           <section
-            className="behavior-section"
+            className={`behavior-section${highlightedSection === 'normalization' ? ' behavior-section-focus' : ''}`}
             data-section-id="normalization"
             ref={(el) => { sectionRefs.current['normalization'] = el; }}
           >
@@ -397,7 +388,7 @@ export default function BehaviorModal() {
           <div className="behavior-divider" />
 
           <section
-            className="behavior-section"
+            className={`behavior-section${highlightedSection === 'visual' ? ' behavior-section-focus' : ''}`}
             data-section-id="visual"
             ref={(el) => { sectionRefs.current['visual'] = el; }}
           >
@@ -411,7 +402,7 @@ export default function BehaviorModal() {
           <div className="behavior-divider" />
 
           <section
-            className="behavior-section"
+            className={`behavior-section${highlightedSection === 'formats' ? ' behavior-section-focus' : ''}`}
             data-section-id="formats"
             ref={(el) => { sectionRefs.current['formats'] = el; }}
           >

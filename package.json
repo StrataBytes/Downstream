@@ -2,7 +2,7 @@
   "name": "electron",
   "productName": "Downstream",
   "displayName": "Downstream",
-  "version": "2.2.8",
+  "version": "2.3.5",
   "description": "Downstream",
   "main": ".vite/build/main.js",
   "scripts": {

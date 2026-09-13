@@ -7,8 +7,9 @@ const { unblockFile, redownloadYtDlp, YT_DLP_WIN_VERSION } = require('../src/bin
 
 const root = path.resolve(__dirname, '..');
 
-// pinned yt-dlp release for the macos standalone binary, bump this to update yt-dlp on macos builds.
-// windows's pin (YT_DLP_WIN_VERSION) lives in src/binaryRecovery.js, shared with the runtime recovery path in main.js.
+// Pinned macOS bootstrap binary. At runtime, Downstream copies it to userData and
+// updates that managed copy to yt-dlp nightly. Windows's equivalent lives in
+// src/binaryRecovery.js and is also used for Defender recovery.
 const YT_DLP_MACOS_VERSION = '2026.06.09';
 
 function ensureElectron() {
@@ -95,9 +96,8 @@ async function ensureYtDlp() {
   }
 
   if (isWin) {
-    // deliberately pinned (YT_DLP_WIN_VERSION), not "latest", see the comment on that constant in src/binaryRecovery.js for why.
-    // yt-dlp-exec's own installer always grabs whatever's newest on github, which means every install gets a different, reputation-less binary that smart app control blocks outright.
-    // this shares one known-good hash across every install.
+    // The packaged fallback is deliberately pinned. The running app updates its
+    // separate user-data copy, so this remains a stable recovery source.
     console.log(`Downloading pinned yt-dlp binary (${YT_DLP_WIN_VERSION})...`);
     await redownloadYtDlp(bin);
     return;

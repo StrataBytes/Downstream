@@ -41,7 +41,7 @@ export default function MissingBinaryBanner() {
         </svg>
         <span className="update-banner-text">
           Windows blocked or removed <strong>{missingName}</strong>, and Downstream couldn't restore {ffmpegMissing && ytDlpMissing ? 'them' : 'it'} automatically.
-          Downloads won't work until this is fixed -- check Windows Security &gt; Protection history to restore the file, then retry below.
+          Downloads won't work until this is fixed! Check Windows Security &gt; Protection history to restore the file, then retry below.
         </span>
       </div>
       <div className="update-banner-actions">

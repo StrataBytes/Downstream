@@ -10,11 +10,10 @@ const path = require('path');
 const https = require('https');
 const zlib = require('zlib');
 
-// pinned yt-dlp release for windows, deliberately not "latest".
-// yt-dlp-exec's own installer always grabs whatever the newest github release is at install time, so every user who runs `npm run setup` on a different day gets a different yt-dlp.exe with a different sha256 hash.
-// windows smart app control blocks unsigned executables unless microsoft's cloud reputation graph already recognizes that exact hash, and a hash freshly minted on every install never accumulates enough shared exposure to earn that.
-// ffmpeg-static already avoids this by pinning a fixed release tag (see FFMPEG_RELEASE_TAG below), and this does the same for yt-dlp, so every downstream install on a given release shares one hash instead of each rolling the dice for each.
-// bump deliberately, not automatically, when yt-dlp needs to catch up with youtube, and re-verify the new pin isn't immediately blocked before shipping it, since a fresh pin starts back at zero reputation too.
+// Pinned Windows fallback for the packaged app and Defender recovery path.
+// The running app immediately copies this to its writable user-data directory and
+// updates that managed copy to yt-dlp nightly. Keeping this bootstrap binary pinned
+// means fresh installs still share a known hash if Smart App Control intervenes.
 const YT_DLP_WIN_VERSION = '2026.02.04';
 const YT_DLP_WIN_URL = `https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_WIN_VERSION}/yt-dlp.exe`;
 

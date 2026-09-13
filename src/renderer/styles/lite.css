@@ -17,7 +17,8 @@ body.lite-no-blur #background-layer::before {
 
 body.lite-no-blur .primary-widget,
 body.lite-no-blur .queue-widget,
-body.lite-no-blur .home-widget {
+body.lite-no-blur .home-widget,
+body.lite-no-blur .home-idle-widget {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   background: rgba(15, 25, 35, 0.95);

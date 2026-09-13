@@ -45,8 +45,9 @@ export default function QueueWidget() {
     const remaining = queue.filter(
       (item) => !item.status?.includes('Completed') && !item.status?.includes('Complete')
     ).length;
-    if (remaining <= 5) {
+    if (remaining <= 1) {
       setDownloadCancelled(true);
+      window.electronAPI.cancelDownload().catch(() => {});
     } else {
       openCancelModal(remaining);
     }

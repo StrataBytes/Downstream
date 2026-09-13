@@ -67,8 +67,9 @@ export default function NewFilesPopup() {
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
         <div className="new-files-popup-text">
-          <span className="new-files-popup-title">New files detected</span>
-          <span className="new-files-popup-desc">Reload to add them -- this will restart playback from the beginning.</span>
+          <span className="new-files-popup-title">New media detected!</span>
+          <span className="new-files-popup-desc">Press Refresh to add them to the playlist.</span>
+          <span className="new-files-popup-desc">Playlist progress will be reset when you refresh.</span>
         </div>
       </div>
       <div className="new-files-popup-actions">
@@ -76,7 +77,7 @@ export default function NewFilesPopup() {
           Dismiss
         </button>
         <button className="new-files-popup-btn new-files-reload" onClick={handleReload}>
-          Reload
+          Refresh
         </button>
       </div>
     </div>

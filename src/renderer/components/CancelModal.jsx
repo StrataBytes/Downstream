@@ -9,11 +9,12 @@ export default function CancelModal() {
 
   const handleConfirm = () => {
     setDownloadCancelled(true);
+    window.electronAPI.cancelDownload().catch(() => {});
     closeCancelModal();
   };
 
   return (
-    <div className="modal" style={{ display: 'block' }}>
+    <div className="modal">
       <div className="modal-content cancel-modal-content">
         <h2>Cancel Downloads?</h2>
         <p>

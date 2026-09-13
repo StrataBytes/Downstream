@@ -3,6 +3,7 @@ import ScrollingText from './ScrollingText';
 
 export default function MiniPlayer() {
   const currentView = useAppStore((s) => s.currentView);
+  const homeIdleMode = useAppStore((s) => s.homeIdleMode);
   const musicCurrent = useAppStore((s) => s.musicCurrent);
   const musicPlaying = useAppStore((s) => s.musicPlaying);
   const setMusicPlaying = useAppStore((s) => s.setMusicPlaying);
@@ -15,7 +16,7 @@ export default function MiniPlayer() {
   if (currentView === 'player' || !musicCurrent) return null;
 
   return (
-    <div className="mini-player">
+    <div className={`mini-player${currentView === 'home' && homeIdleMode ? ' mini-player-idle' : ''}`}>
       <button className="mini-player-btn" onClick={playPrevTrack} title="Previous">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <rect x="3" y="5" width="3" height="14" rx="1" />
@@ -52,7 +53,7 @@ export default function MiniPlayer() {
       <button
         className={`mini-player-return${busy ? ' mini-player-return-disabled' : ''}`}
         onClick={() => !busy && setCurrentView('player')}
-        title={busy ? 'Busy -- wait for downloads to finish' : 'Return to player'}
+        title={busy ? 'Busy. Wait for downloads to finish' : 'Return to player'}
         disabled={busy}
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

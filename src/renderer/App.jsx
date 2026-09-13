@@ -5,6 +5,7 @@ import { useMediaKeybinds } from './hooks/useMediaKeybinds';
 import BackgroundLayer from './components/BackgroundLayer';
 import LoadingOverlay from './components/LoadingOverlay';
 import AudioVisualizer from './components/AudioVisualizer';
+import ImmersiveStarfield from './components/ImmersiveStarfield';
 import AudioEngine from './components/AudioEngine';
 import SongProgressBar from './components/SongProgressBar';
 import DisclaimerModal from './components/DisclaimerModal';
@@ -98,6 +99,7 @@ export default function App() {
   return (
     <>
       <BackgroundLayer />
+      <ImmersiveStarfield />
       <SongProgressBar />
       <AudioEngine />
       <AudioVisualizer />

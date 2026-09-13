@@ -10,6 +10,20 @@
   transition: padding 0.3s ease;
 }
 
+.primary-widget.primary-widget-immersive {
+  position: absolute;
+  bottom: 32px;
+  width: min(420px, calc(100% - 32px));
+  max-height: calc(100% - 96px);
+  overflow-y: auto;
+  padding: 24px 32px;
+  transition: opacity 0.75s ease;
+}
+.primary-widget-immersive.primary-widget-idle {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .primary-content {
   width: 100%;
   display: flex;

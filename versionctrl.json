@@ -1,8 +1,18 @@
 {
   "Versions": {
-    "2.2.8": {
+    "2.3.5": {
       "IsTargetOutdated": false,
       "OutdatedMessage": "",
+      "KnownIssues": [
+        "",
+        "",
+        ""
+      ],
+      "updateButtonUrl": "https://github.com/StrataBytes/Downstream/releases"
+    },
+    "2.2.8": {
+      "IsTargetOutdated": true,
+      "OutdatedMessage": "This version of Downstream is out of date. The latest version has fixed downloading issues. It is strongly recommended to update, as older versions may stop working at any time and are missing new features.",
       "KnownIssues": [
         "",
         "",

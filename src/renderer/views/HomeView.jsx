@@ -18,6 +18,9 @@ let introDone = false;
 
 export default function HomeView() {
   const setCurrentView      = useAppStore((s) => s.setCurrentView);
+  const homeIdleMode        = useAppStore((s) => s.homeIdleMode);
+  const setHomeIdleMode     = useAppStore((s) => s.setHomeIdleMode);
+  const musicPlaying        = useAppStore((s) => s.musicPlaying);
   const setVersionInfo      = useAppStore((s) => s.setVersionInfo);
   const setFfmpegReady      = useAppStore((s) => s.setFfmpegReady);
   const setYtDlpReady       = useAppStore((s) => s.setYtDlpReady);
@@ -48,6 +51,7 @@ export default function HomeView() {
   const [status, setStatus]   = useState('starting');
   const [subLabel, setSubLabel] = useState('');
   const [contentVisible, setContentVisible] = useState(() => introDone);
+  const [idleClock, setIdleClock] = useState(() => new Date());
   const timers = useRef([]);
 
   // intro phase timer
@@ -124,7 +128,7 @@ export default function HomeView() {
         setMusicFiles(files);
       }
       if (tier) {
-        setRenderProfile(tier.profile);
+        setRenderProfile(tier.profile, { automatic: true });
         if (tier.profile === 'lite') {
           setShowAutoLiteNotice(true);
         }
@@ -144,12 +148,55 @@ export default function HomeView() {
     return () => cancelAnimationFrame(id);
   }, [phase]);
 
+  // The home screen intentionally becomes quiet after a period without mouse input.
+  // Listening only after the intro prevents startup pointer movement from immediately
+  // altering the welcome sequence.
+  useEffect(() => {
+    if (phase !== 'content' || !musicPlaying) {
+      setHomeIdleMode(false);
+      return;
+    }
+    let idleTimer;
+    const resetIdleTimer = () => {
+      clearTimeout(idleTimer);
+      setHomeIdleMode(false);
+      idleTimer = setTimeout(() => {
+        setIdleClock(new Date());
+        setHomeIdleMode(true);
+      }, 45000);
+    };
+
+    resetIdleTimer();
+    window.addEventListener('pointermove', resetIdleTimer, { passive: true });
+    return () => {
+      clearTimeout(idleTimer);
+      window.removeEventListener('pointermove', resetIdleTimer);
+      setHomeIdleMode(false);
+    };
+  }, [phase, musicPlaying, setHomeIdleMode]);
+
+  // No seconds are shown, but update while the ambient widgets are visible so the
+  // clock rolls over naturally at the next minute.
+  useEffect(() => {
+    if (!homeIdleMode) return;
+    const tick = () => setIdleClock(new Date());
+    tick();
+    const interval = setInterval(tick, 30000);
+    return () => clearInterval(interval);
+  }, [homeIdleMode]);
+
   const now = new Date();
   let h = now.getHours();
   const m = now.getMinutes();
   const ampm = h >= 12 ? 'pm' : 'am';
   h = h % 12 || 12;
   const timeStr = `It's ${h}:${String(m).padStart(2, '0')}${ampm}`;
+  const idleTime = idleClock.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const idleDate = `${idleClock.toLocaleString([], { month: 'long' })}, ${idleClock.getDate()}`;
 
   const isIntro = phase !== 'content';
 
@@ -170,7 +217,11 @@ export default function HomeView() {
     <div className="layout">
       <UpdateBanner />
       <MissingBinaryBanner />
-      <div className="home-widget">
+      <div className={`home-idle-hud${homeIdleMode ? ' home-idle-hud-visible' : ''}`} aria-hidden={!homeIdleMode}>
+        <time className="home-idle-widget home-idle-time" dateTime={idleClock.toTimeString()}>{idleTime}</time>
+        <time className="home-idle-widget home-idle-date" dateTime={idleClock.toISOString().slice(0, 10)}>{idleDate}</time>
+      </div>
+      <div className={`home-widget${homeIdleMode ? ' home-widget-idle' : ''}`}>
         {isIntro && (
           <>
             <div className="intro-overlay">
@@ -263,7 +314,7 @@ export default function HomeView() {
           </div>
         </div>
       </div>
-      <span className="home-version" onClick={handleVersionTap}>v2.2.8</span>
+      <span className="home-version" onClick={handleVersionTap}>v2.3.5</span>
     </div>
   );
 }

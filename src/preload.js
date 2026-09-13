@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
     platform: process.platform,
     downloadVideo: (data) => ipcRenderer.invoke('download-video', data),
+    cancelDownload: () => ipcRenderer.invoke('cancel-download'),
     getVideoInfo: (url) => ipcRenderer.invoke('get-video-info', url),
     getPlaylistInfo: (url) => ipcRenderer.invoke('get-playlist-info', url),
     openDownloadsFolder: (folderPath) => ipcRenderer.invoke('open-downloads-folder', folderPath),
@@ -15,6 +16,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     checkVersion: () => ipcRenderer.invoke('check-version'),
     checkFfmpeg: () => ipcRenderer.invoke('check-ffmpeg'),
     checkYtDlp: () => ipcRenderer.invoke('check-ytdlp'),
+    getYtDlpInfo: () => ipcRenderer.invoke('get-ytdlp-info'),
+    getYtDlpVersions: () => ipcRenderer.invoke('get-ytdlp-versions'),
+    setYtDlpVersion: (target) => ipcRenderer.invoke('set-ytdlp-version', target),
     checkNetwork: () => ipcRenderer.invoke('check-network'),
     detectRenderTier: () => ipcRenderer.invoke('detect-render-tier'),
     openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),

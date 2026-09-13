@@ -23,7 +23,7 @@ export default function DownloadView() {
         <button
           className={`btn-back${busy ? ' btn-back-disabled' : ''}`}
           onClick={() => !busy && setCurrentView('home')}
-          title={busy ? 'Busy -- wait for downloads to finish' : 'Back to home'}
+          title={busy ? 'Busy. Wait for downloads to finish' : 'Back to home'}
           disabled={busy}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

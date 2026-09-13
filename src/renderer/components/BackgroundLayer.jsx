@@ -14,6 +14,7 @@ export default function BackgroundLayer() {
   const musicPlaying = useAppStore((s) => s.musicPlaying);
   const holdFrame = useAppStore((s) => s.behaviorHoldVideoFrame);
   const audioRef = useAppStore((s) => s.musicAudioRef);
+  const setBackgroundVideoReady = useAppStore((s) => s.setBackgroundVideoReady);
   const layerRef = useRef(null);
   const videoRef = useRef(null);
   const pauseFadeRef = useRef(null);
@@ -52,12 +53,19 @@ export default function BackgroundLayer() {
   useEffect(() => {
     const vid = videoRef.current;
     const audio = audioRef?.current;
-    if (!vid || !video) return;
+    if (!vid || !video) {
+      setBackgroundVideoReady(false);
+      return;
+    }
+    setBackgroundVideoReady(false);
     vid.src = video;
     if (audio && audio.currentTime > 0) {
       vid.currentTime = audio.currentTime;
     }
     vid.play().catch(() => {});
+    const onReady = () => setBackgroundVideoReady(true);
+    vid.addEventListener('loadeddata', onReady);
+    return () => vid.removeEventListener('loadeddata', onReady);
   }, [video]);
 
   useEffect(() => {

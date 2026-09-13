@@ -90,7 +90,7 @@ const DOWNLOAD_TOPICS = [
       body: (
         <>
           <p>Type a <strong>search term</strong> into the input bar to find content, or paste a <strong>direct link</strong> to add it straight to your queue.</p>
-          <p>Downstream also supports <strong>public playlists</strong> and <strong>radio mixes</strong> -- paste the link and you'll be prompted to select which items to add.</p>
+          <p>Downstream also supports <strong>public playlists</strong>, <strong>unlisted playlists & videos</strong>, and <strong>radio mixes</strong> -- paste the link and you'll be prompted to select which items to add.</p>
           <p>Each item is added to the queue individually, so you can review and adjust before downloading.</p>
         </>
       ),
@@ -105,8 +105,8 @@ const DOWNLOAD_TOPICS = [
           <p>Before adding content to the queue, you can pick a <strong>video quality</strong> -- options range from 480p up to the highest available resolution.</p>
           <p>Choose your <strong>output format</strong>:</p>
           <ul>
-            <li><strong>MP4</strong> -- keeps the full video with audio</li>
-            <li><strong>MP3</strong> -- extracts just the audio</li>
+            <li><strong>MP4</strong> (keeps the full video with audio)</li>
+            <li><strong>MP3</strong> (extracts just the audio)</li>
           </ul>
           <p>Quality and format are set when items are added, but you can change the format for any item in the queue afterwards.</p>
         </>
@@ -137,7 +137,7 @@ const DOWNLOAD_TOPICS = [
       body: (
         <>
           <p>By default, downloads go to your system's <strong>Downloads</strong> folder.</p>
-          <p>You can pick a different folder from the queue panel, but this choice <strong>resets each session</strong> -- Downstream does not remember custom paths between launches.</p>
+          <p>You can pick a different folder from the queue panel, but this choice <strong>resets each session</strong>. Downstream does not remember custom paths between launches.</p>
           <div className="guide-callout">Downloaded files are standard MP4 or MP3 files that work with any media player.</div>
         </>
       ),
@@ -150,8 +150,9 @@ const DOWNLOAD_TOPICS = [
       body: (
         <>
           <p>Downstream <strong>never collects, stores, or transmits</strong> any personal data.</p>
-          <p>The only external connection is to the <strong>public GitHub repository</strong> -- solely to check for newer versions. No identifying information is sent.</p>
-          <div className="guide-callout">Your downloads, settings, and playback history all stay on your computer.</div>
+          <p>The only external connection is to the <strong>public GitHub repository</strong> to check for newer versions. No identifying information is sent.</p>
+          <p>Downstream includes two open-source libraries, <strong>FFMPEG</strong> and <strong>YT-DLP</strong>, which are used for processing media and downloading content. These libraries are included with the application and are updated automatically as needed.</p>
+          <div className="guide-callout">Your downloads, settings and playback history all stay on your computer.</div>
         </>
       ),
     },
@@ -164,7 +165,7 @@ const DOWNLOAD_TOPICS = [
         <>
           <p>Downstream is a tool! How you use it is your responsibility.</p>
           <p>Only download content you <strong>own, have permission to access, or is freely available</strong> under its creator's terms.</p>
-          <p>Be mindful of the platforms you download from -- many have terms of service that restrict automated downloading. Please respect those boundaries.</p>
+          <p>Be mindful of the platforms you download from. Many have terms of service that restrict automated downloading. Please respect those boundaries.</p>
           <div className="guide-callout">The developer does not endorse or encourage any form of piracy or copyright infringement.</div>
         </>
       ),
@@ -212,14 +213,14 @@ const PLAYER_TOPICS = [
         <>
           <p>The player gives you straightforward controls:</p>
           <ul>
-            <li><strong>Play / Pause</strong> -- the center button</li>
-            <li><strong>Previous / Next</strong> -- skip through your playlist</li>
-            <li><strong>Shuffle</strong> -- randomizes the play order</li>
-            <li><strong>Repeat</strong> -- loops the current track</li>
+            <li><strong>Play / Pause</strong> (the center button)</li>
+            <li><strong>Previous / Next</strong> (skip through your playlist)</li>
+            <li><strong>Shuffle</strong> (randomizes the play order)</li>
+            <li><strong>Repeat</strong> (loops the current track)</li>
           </ul>
           <p>When shuffle is on, finishing the queue <strong>reshuffles automatically</strong> so you get a fresh order each cycle.</p>
 
-          <p><strong>Keybinds</strong> -- work anywhere in the player, as long as you're not typing in a text field:</p>
+          <p><strong>Keybinds</strong>: work anywhere in the player, as long as you're not typing in a text field.</p>
           <div className="guide-keybinds">
             <div className="guide-keybind-row">
               <span className="guide-keybind-keys"><kbd className="guide-kbd">Space</kbd></span>
@@ -255,7 +256,7 @@ const PLAYER_TOPICS = [
           <p>Fine-tune your sound with two built-in tools:</p>
           <div className="guide-feature">
             <strong>10-Band Equalizer</strong>
-            <span>Shape your sound from 31Hz to 16kHz. Choose from presets like Bass Boost, Treble, or Smooth -- or dial in your own.</span>
+            <span>Shape your sound from 31Hz to 16kHz. Choose from presets like Bass Boost, Treble, Smooth or dial in your own. All settings save.</span>
           </div>
           <div className="guide-feature">
             <strong>Volume Normalization</strong>
@@ -275,13 +276,13 @@ const PLAYER_TOPICS = [
           <p>The <strong>Behavior</strong> chip opens a settings panel where you can customize the player to your liking.</p>
           <div className="guide-feature">
             <strong>View Modes</strong>
-            <span>Switch between Explorer (everything visible) and Commander (compact -- hover to reveal controls). More modes coming soon.</span>
+            <span>Switch between Explorer (everything visible) and Commander (compact - hover to reveal controls). More modes coming soon.</span>
           </div>
           <div className="guide-feature">
             <strong>Visual Options</strong>
             <span>Toggle the frequency visualizer, album art backgrounds, the progress bar, and scrolling track titles.</span>
           </div>
-          <p>The visualizer and progress bar are always positioned independently -- they're unaffected by view mode changes.</p>
+          <p>The visualizer and progress bar are always positioned independently. They're unaffected by view mode changes.</p>
         </>
       ),
     },
@@ -292,12 +293,12 @@ const PLAYER_TOPICS = [
       title: 'Supported Formats',
       body: (
         <>
-          <p>The player scans folders for audio files based on your <strong>format preferences</strong>:</p>
+          <p>The player scans folders for audio files based on your <strong>format preferences</strong>, all enabled by default:</p>
           <ul>
-            <li><strong>MP3</strong> -- enabled by default</li>
-            <li><strong>FLAC</strong> -- enabled by default</li>
-            <li><strong>WAV</strong> -- enabled by default</li>
-            <li><strong>MP4</strong> -- enabled by default</li>
+            <li><strong>MP3</strong></li>
+            <li><strong>FLAC</strong></li>
+            <li><strong>WAV</strong></li>
+            <li><strong>MP4</strong></li>
           </ul>
           <div className="guide-callout">Downstream is an audio-first player. MP4 files play their audio track normally, and when album art backgrounds are enabled, the video is shown as a blurred ambient backdrop rather than a full video player.</div>
           <p>Toggle formats in <strong>Behavior &gt; Formats & File Scanning</strong>. Changes take effect the next time a folder is loaded.</p>
@@ -313,7 +314,7 @@ const PLAYER_TOPICS = [
         <>
           <p>The player is <strong>entirely local</strong>. Your music never leaves your computer.</p>
           <p>No playback data, listening history, or library contents are ever collected or transmitted.</p>
-          <div className="guide-callout">Downstream has no accounts, no analytics, and no telemetry -- anywhere in the app.</div>
+          <div className="guide-callout">Downstream has no accounts, no analytics and no telemetry, anywhere in the app.</div>
         </>
       ),
     },

@@ -30,10 +30,14 @@ function restoreAlbumBackground() {
 
 async function downloadRateLimitDelay() {
   downloadCount++;
-  if (downloadCount > 0 && downloadCount % RATE_LIMIT.BATCH_SIZE === 0) {
-    await new Promise((r) => setTimeout(r, RATE_LIMIT.BATCH_PAUSE));
-  } else {
-    await new Promise((r) => setTimeout(r, RATE_LIMIT.DOWNLOAD_DELAY));
+  const delay = downloadCount > 0 && downloadCount % RATE_LIMIT.BATCH_SIZE === 0
+    ? RATE_LIMIT.BATCH_PAUSE
+    : RATE_LIMIT.DOWNLOAD_DELAY;
+  // Cancellation should be just as responsive while a courtesy delay is pending as
+  // it is during a download. A short polling interval avoids waiting several seconds.
+  for (let elapsed = 0; elapsed < delay; elapsed += 100) {
+    if (useAppStore.getState().downloadCancelled) return;
+    await new Promise((r) => setTimeout(r, Math.min(100, delay - elapsed)));
   }
 }
 
@@ -195,7 +199,11 @@ export async function downloadAll() {
         outputDir: useAppStore.getState().downloadFolder || null,
       });
 
-      if (result && !result.success) {
+      if (result?.cancelled) {
+        dbg('download', `cancelled "${latestItem.title}"`);
+        useAppStore.getState().updateQueueItem(item.url, { status: 'Cancelled' });
+        break;
+      } else if (result && !result.success) {
         dbg('download', '!', `"${latestItem.title}" failed: ${result.error || 'unknown'}`);
         useAppStore.getState().updateQueueItem(item.url, { status: 'Error' });
       } else {
@@ -214,17 +222,21 @@ export async function downloadAll() {
     });
 
     if (i === queue.length - 1 && !useAppStore.getState().downloadCancelled) {
-      await new Promise((r) => setTimeout(r, 5000));
-      useAppStore.getState().clearNowPlaying();
-      restoreAlbumBackground();
+      // The thumbnail background deliberately lingers after the last download, but
+      // it must not keep the queue controls locked. Schedule that visual handoff
+      // independently so isDownloading can reset immediately below.
       setTimeout(() => {
-        useAppStore.getState().setTotalProgress({
-          visible: false,
-          text: 'Ready',
-          completed: 0,
-          total: 0,
-        });
-      }, 1000);
+        useAppStore.getState().clearNowPlaying();
+        restoreAlbumBackground();
+        setTimeout(() => {
+          useAppStore.getState().setTotalProgress({
+            visible: false,
+            text: 'Ready',
+            completed: 0,
+            total: 0,
+          });
+        }, 1000);
+      }, 5000);
     }
   }
 
