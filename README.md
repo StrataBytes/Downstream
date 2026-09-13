@@ -1,4 +1,4 @@
-# Downstream v2.2.8 (Mid 2026)
+# Downstream v2.3.5 (Mid/Late 2026)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)  
 **Author:** Stratabytes
 
@@ -7,17 +7,6 @@
 **Downstream** is a cross-platform media toolkit built with Electron. It combines a YouTube downloader with a local music player, all in one desktop app while being very robust and customizable. It uses libraries like `FFmpeg` and `yt-dlp` for fast and reliable downloads.
 > **note:** Downstream is a tool and the app is designed for legal use cases. Please respect copyright laws and platform terms of service when downloading media. You are solely responsible for appropriate usage (;
 
-## Features
-
-- **Multi-Platform Support**: Downstream supports Windows and macOS. Linux is planned for a future build!
-- **High-Speed Downloads**: Download from YouTube as MP4 or MP3, including full playlists.
-- **Music Player**: Built-in local music player with an EQ mixer, per-preset band customization, audio visualizer and volume normalization. A perfect background player.
-- **Lite Rendering Mode**: Automatically detected on first launch based on your hardware. If your pc or mac is not up to spec, Downstream reduces blur, animations and background effects for smoother performance on older machines.
-- **User-Friendly Interface**: Clean UI with smooth transitions, album art backgrounds and a scrolling track display.
-- **Straight to Folder**: Downloads go directly to your system Downloads folder, or can be changed to be elsewhere.
-- **Playlist / Radio Support**: Compatible with public YouTube playlist and radio links.
-- **Saved Folders**: Save and switch between multiple local music library folders.
-- **Auto-Update Checks**: Notifies you on the home screen when a new version is available.
 
 ## Download
 
@@ -30,6 +19,19 @@ Head to the [latest release](https://github.com/StrataBytes/Downstream/releases/
 | **Windows** | `Downstream-X.X.X Setup`**.exe** |
 | **macOS** | `Downstream-X.X.X`**.dmg** |
 
+
+## Features
+
+- **Multi-Platform Support**: Downstream supports Windows and macOS. Linux is planned for the next future release.
+- **High-Speed Downloads**: Download from YouTube as MP4 or MP3, including full playlists and unlisted links.
+- **Music Player**: Built-in local music player with an EQ mixer, per-preset band customization, audio visualizer and volume normalization. A perfect background player.
+- **Lite Rendering Mode**: Automatically detected on first launch based on your hardware. If your pc or mac is not up to spec, Downstream reduces blur, animations and background effects for smoother performance on older machines.
+- **User-Friendly Interface**: Clean UI with smooth transitions, album art backgrounds and a scrolling track display.
+- **Straight to Folder**: Downloads go directly to your system Downloads folder, or can be changed to be elsewhere.
+- **Playlist / Radio Support**: Compatible with public YouTube playlist and radio links.
+- **Saved Folders**: Save and switch between multiple local music library folders.
+- **Auto-Update Checks**: Notifies you on the home screen when a new version is available.
+  
 ### OS Compatibility Note...
 - Windows 10 & 11 is Downstream's 'native' operating system. 
 - MacOS compatibility has been only tested and developed on what I have available, being Ventura. 
@@ -88,7 +90,7 @@ Patches and hotfixes are usually always insta-pushed as the latest version, as s
 #### Stance of Patching & Hotfixes
 > Youtube loves to break apps like these by making goofy changes to their platform! Im not 24/7 working on Downstream, so fixes might be a little slow if its not app-breakingly bad. 
 #### Broken Downloads Due to YT?
-> When youtube breaks downloads, this usually takes a while to get fixed, but is high priority. While I might not be right away fixing it, you can probably expect the app to be running once yt-dlp pushes a new, working version for me to swap out downstream with. I am also planning to have this be user-modular, within UI, so users can easily get Downstream working again, instead of waiting around.  (thanks a ton for the contributors of yt-dlp!)
+> When youtube breaks downloads, this usually takes a while to get fixed, but is high priority. While I might not be right away fixing it, you can probably expect the app to be running on its own again once yt-dlp pushes a new, working version which downstream automatically swaps with - you can also mess around in the advanced settings on the main menu's settings page.  (thanks a ton for the contributors of yt-dlp!)
 #### General Issues, App Bugs and Glitches?
 > Because this is a passion project, most minor issues will not be quickly resolved. Only high severity problems will be patched with relative haste.
 > Additionally, cutting-edge hardware or OS changes are not included in stability priority. I dont plan on buying a new mac every 3 years, or upgrading to windows 12 right away.
