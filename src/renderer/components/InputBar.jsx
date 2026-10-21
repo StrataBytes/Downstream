@@ -17,6 +17,7 @@ export default function InputBar() {
   const [searching, setSearching] = useState(false);
   const [inputError, setInputError] = useState(null);
   const errorTimerRef = useRef(null);
+  const inputRef = useRef(null);
   const openPlaylistModal = useAppStore((s) => s.openPlaylistModal);
   const setLoading = useAppStore((s) => s.setLoading);
 
@@ -94,6 +95,8 @@ export default function InputBar() {
     }
 
     setUrl('');
+    // unfocusing brings the downloader touch bar back after a link is added.
+    inputRef.current?.blur();
   };
 
   const handleKeyDown = (e) => {
@@ -104,6 +107,7 @@ export default function InputBar() {
     <>
       <div className="input-bar">
         <input
+          ref={inputRef}
           type="text"
           className="url-input"
           placeholder="Search for something or paste a link..."

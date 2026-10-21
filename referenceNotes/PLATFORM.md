@@ -16,6 +16,7 @@ Downstream runs on Windows and macOS. Here's how multi-OS works.
 - `getFFmpegDir()` -- directory containing both ffmpeg and ffprobe (passed to yt-dlp's `--ffmpeg-location`)
 - `getYtDlpPath()` -- path to yt-dlp binary (same idea as ffmpeg)
 - `getIconPath()` -- app icon (`.ico` on Windows, `.icns` on Mac)
+- `attachTouchBar(win)` -- macOS Touch Bar (see `src/touchBar.js`), no-op on Windows. The renderer pushes a state snapshot over `touchbar-state` (`src/renderer/hooks/useTouchBar.js`) and the bar's buttons come back as `touchbar-action`
 - `detectRenderTier()` -- returns `{ profile: 'standard'|'lite', reason }`, used once on first launch to pick a sensible default rendering profile. Mac checks `process.arch` (with a Rosetta check via `sysctl.proc_translated` so an Apple Silicon Mac running an x64 build isn't mistaken for genuine Intel hardware); Windows runs a strict RAM/CPU-name/core-count cascade since architecture alone doesn't signal hardware tier there. See `MODERN_CPU_PATTERN` in `main.js` for the recognized CPU brand list.
 
 ## Build config

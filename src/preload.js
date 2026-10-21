@@ -24,6 +24,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openExternalUrl: (url) => ipcRenderer.invoke('open-external-url', url),
     onDebugLog: (func) => ipcRenderer.on('debug-log', (event, entry) => func(entry)),
     setDebugCapture: (on) => ipcRenderer.send('set-debug-capture', on),
+    setTouchBarState: (state) => ipcRenderer.send('touchbar-state', state),
+    setTouchBarTitle: (title) => ipcRenderer.send('touchbar-title', title),
+    setTouchBarIcons: (icons) => ipcRenderer.send('touchbar-icons', icons),
+    onTouchBarAction: (func) => ipcRenderer.on('touchbar-action', (event, action, value) => func(action, value)),
     on: (channel, func) => {
         const validChannels = [
             'download-progress',

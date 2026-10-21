@@ -144,6 +144,26 @@ export function addPlaylistToQueue(videos, quality, format) {
   dbg('queue', `added ${items.length} playlist item(s) instantly`);
 }
 
+// one remaining item stops right away, more than one asks first.
+export function requestCancelDownloads() {
+  const state = useAppStore.getState();
+  if (!state.isDownloading) return;
+  const remaining = state.queue.filter(
+    (item) => !item.status?.includes('Completed') && !item.status?.includes('Complete')
+  ).length;
+  if (remaining <= 1) {
+    state.setDownloadCancelled(true);
+    window.electronAPI.cancelDownload().catch(() => {});
+  } else {
+    state.openCancelModal(remaining);
+  }
+}
+
+export async function chooseDownloadFolder() {
+  const selected = await window.electronAPI.selectDownloadFolder();
+  if (selected) useAppStore.getState().setDownloadFolder(selected);
+}
+
 export async function downloadAll() {
   const state = useAppStore.getState();
   const queue = [...state.queue];

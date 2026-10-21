@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import useAppStore from './stores/useAppStore';
 import { useIPCListeners } from './hooks/useIPC';
 import { useMediaKeybinds } from './hooks/useMediaKeybinds';
+import { useTouchBar } from './hooks/useTouchBar';
 import BackgroundLayer from './components/BackgroundLayer';
 import LoadingOverlay from './components/LoadingOverlay';
 import AudioVisualizer from './components/AudioVisualizer';
@@ -48,6 +49,7 @@ export default function App() {
   useIPCListeners();
   useLiteModeClasses();
   useMediaKeybinds();
+  useTouchBar();
 
   const currentView = useAppStore((s) => s.currentView);
   const [displayed, setDisplayed] = useState(currentView);

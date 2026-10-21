@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import useAppStore from '../stores/useAppStore';
-import { downloadAll } from '../services/downloadService';
+import { downloadAll, requestCancelDownloads, chooseDownloadFolder } from '../services/downloadService';
 import QueueRow from './QueueRow';
 
 export default function QueueWidget() {
@@ -11,12 +11,9 @@ export default function QueueWidget() {
   const queueOpen = useAppStore((s) => s.queueOpen);
   const isDownloading = useAppStore((s) => s.isDownloading);
   const clearAndCloseQueue = useAppStore((s) => s.clearAndCloseQueue);
-  const setDownloadCancelled = useAppStore((s) => s.setDownloadCancelled);
-  const openCancelModal = useAppStore((s) => s.openCancelModal);
   const setAllQueueFormat = useAppStore((s) => s.setAllQueueFormat);
   const totalProgress = useAppStore((s) => s.totalProgress);
   const downloadFolder = useAppStore((s) => s.downloadFolder);
-  const setDownloadFolder = useAppStore((s) => s.setDownloadFolder);
 
   const currentView = useAppStore((s) => s.currentView);
   const [closing, setClosing] = useState(false);
@@ -33,24 +30,6 @@ export default function QueueWidget() {
       clearAndCloseQueue();
       setClosing(false);
     }, 350); // matches CSS slide-out duration
-  };
-
-  const handleChangeFolder = async () => {
-    const selected = await window.electronAPI.selectDownloadFolder();
-    if (selected) setDownloadFolder(selected);
-  };
-
-  const handleCancel = () => {
-    if (!isDownloading) return;
-    const remaining = queue.filter(
-      (item) => !item.status?.includes('Completed') && !item.status?.includes('Complete')
-    ).length;
-    if (remaining <= 1) {
-      setDownloadCancelled(true);
-      window.electronAPI.cancelDownload().catch(() => {});
-    } else {
-      openCancelModal(remaining);
-    }
   };
 
   const displayItems = showHistory ? queueHistory : queue;
@@ -139,7 +118,7 @@ export default function QueueWidget() {
             Download All
           </button>
           {isDownloading && (
-            <button className="btn-danger" onClick={handleCancel}>Cancel</button>
+            <button className="btn-danger" onClick={requestCancelDownloads}>Cancel</button>
           )}
           <div className={`btn-folder-split${busy ? ' btn-disabled' : ''}`}>
             <button
@@ -154,7 +133,7 @@ export default function QueueWidget() {
             </button>
             <button
               className="btn-folder-wedge"
-              onClick={handleChangeFolder}
+              onClick={chooseDownloadFolder}
               disabled={busy}
               title="Change download location (this session only)"
             >

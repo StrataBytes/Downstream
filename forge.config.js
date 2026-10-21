@@ -149,6 +149,12 @@ module.exports = {
           config: 'vite.main.config.mjs',
           target: 'main',
         },
+        {
+          // same as above, for touchBar.js.
+          entry: 'src/touchBar.js',
+          config: 'vite.main.config.mjs',
+          target: 'main',
+        },
       ],
       renderer: [
         {

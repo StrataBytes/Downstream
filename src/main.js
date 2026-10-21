@@ -4,6 +4,7 @@ const os = require('os');
 const { spawn, execFile } = require('child_process');
 const { Readable } = require('stream');
 const { redownloadYtDlp, redownloadFfmpeg, unblockFile, describeBinaryFailure } = require('./binaryRecovery');
+const { attachTouchBar } = require('./touchBar');
 
 // in-app debug log forwarding.
 // tees main-process console output to the renderer's debugging outlog pane while preserving normal stdout.
@@ -90,6 +91,7 @@ const win32 = {
 
         return { profile: 'standard', reason: 'modern-hardware' };
     },
+    attachTouchBar() {},
 };
 
 const darwin = {
@@ -108,6 +110,9 @@ const darwin = {
     },
     getIconPath() {
         return path.join(__dirname, '..', '..', 'assets', 'icons', 'mac', 'icon.icns');
+    },
+    attachTouchBar(win) {
+        attachTouchBar(win);
     },
     detectRenderTier() {
         if (process.arch === 'arm64') {
@@ -404,6 +409,8 @@ function createWindow() {
     mainWindow.webContents.on('did-finish-load', () => {
         debugSender = mainWindow.webContents;
     });
+
+    platform.attachTouchBar(mainWindow);
 
     if (process.platform === 'darwin') {
         const template = [

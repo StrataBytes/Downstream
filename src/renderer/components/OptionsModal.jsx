@@ -42,6 +42,41 @@ const STARTUP_TOGGLES = [
   },
 ];
 
+// macos only.
+// keys map into touchBarPrefs.
+const TOUCH_BAR_TOGGLES = [
+  {
+    key: 'trackTitle',
+    label: 'Show Track Title',
+    description: 'Displays the current song name next to the playback controls in the player.',
+  },
+  {
+    key: 'volume',
+    label: 'Show Volume Control',
+    description: 'Adds a volume button to the player bar that expands into a slider when tapped.',
+  },
+  {
+    key: 'shuffleRepeat',
+    label: 'Show Shuffle & Repeat',
+    description: 'Adds shuffle and repeat buttons to the player bar. They light up when active.',
+  },
+  {
+    key: 'formatSwitch',
+    label: 'Show Format Switch',
+    description: 'Adds "All MP4" / "All MP3" buttons to the downloader bar while the queue has items.',
+  },
+  {
+    key: 'downloadStatus',
+    label: 'Show Download Progress',
+    description: 'Shows the queue count and batch progress in the downloader bar.',
+  },
+  {
+    key: 'musicEverywhere',
+    label: 'Music Controls Outside the Player',
+    description: 'While a song is loaded, keeps previous, play/pause and next on the home screen bar, and play/pause on the downloader bar.',
+  },
+];
+
 // modular profile list, add new rendering profiles here as they're built.
 // `toggles: null` renders an empty-state message in the drawer instead.
 const PROFILES = [
@@ -312,6 +347,37 @@ export default function OptionsModal() {
           </section>
 
           <div className="behavior-divider" />
+
+          {window.electronAPI.platform === 'darwin' && (
+            <>
+              <section className="behavior-section">
+                <div className="behavior-section-header">
+                  <h3 className="behavior-section-title">Touch Bar</h3>
+                  <p className="behavior-section-desc">
+                    Choose what appears on the Touch Bar. While a text field is focused, macOS shows typing suggestions there instead.
+                  </p>
+                </div>
+                <div className="behavior-toggles">
+                  {TOUCH_BAR_TOGGLES.map((toggle) => (
+                    <label key={toggle.key} className="behavior-toggle-row">
+                      <div className="behavior-toggle-info">
+                        <span className="behavior-toggle-label">{toggle.label}</span>
+                        <span className="behavior-toggle-desc">{toggle.description}</span>
+                      </div>
+                      <div
+                        className={`behavior-switch${store.touchBarPrefs[toggle.key] ? ' behavior-switch-on' : ''}`}
+                        onClick={() => store.setTouchBarPref(toggle.key, !store.touchBarPrefs[toggle.key])}
+                      >
+                        <div className="behavior-switch-thumb" />
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </section>
+
+              <div className="behavior-divider" />
+            </>
+          )}
 
           <section className="behavior-section advanced-options-section">
             <button

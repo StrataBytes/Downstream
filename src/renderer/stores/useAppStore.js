@@ -359,6 +359,22 @@ const useAppStore = create((set) => ({
   optionsOpen: false,
   setOptionsOpen: (val) => set({ optionsOpen: val }),
 
+  // optional touch bar items, all on by default.
+  touchBarPrefs: (() => {
+    const defaults = { trackTitle: true, volume: true, shuffleRepeat: true, formatSwitch: true, downloadStatus: true, musicEverywhere: true };
+    try {
+      return { ...defaults, ...JSON.parse(localStorage.getItem('touchBarPrefs') || '{}') };
+    } catch {
+      return defaults;
+    }
+  })(),
+  setTouchBarPref: (key, val) =>
+    set((s) => {
+      const prefs = { ...s.touchBarPrefs, [key]: val };
+      localStorage.setItem('touchBarPrefs', JSON.stringify(prefs));
+      return { touchBarPrefs: prefs };
+    }),
+
   // hidden "debugging outlog" pane, toggled by tapping the version number 5x.
   debugConsoleOpen: false,
   setDebugConsoleOpen: (val) => set({ debugConsoleOpen: val }),
