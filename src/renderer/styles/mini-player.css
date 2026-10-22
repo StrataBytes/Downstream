@@ -23,6 +23,12 @@
   pointer-events: none;
 }
 
+.mini-player-leaving {
+  opacity: 0;
+  pointer-events: none;
+  transition-duration: 0.25s;
+}
+
 @keyframes miniPlayerSlideIn {
   from {
     opacity: 0;

@@ -66,6 +66,22 @@ export function clearLoudnessCache() {
   }
 }
 
+// a renamed folder keeps its measurements, since renaming changes the paths but not the files.
+export function moveLoudnessRecords(oldDir, newDir) {
+  const moved = (p) => newDir + p.slice(oldDir.length);
+  const inside = (p) => p.startsWith(oldDir) && /^[/\\]/.test(p.slice(oldDir.length));
+  let count = 0;
+  for (const key of Object.keys(cache)) {
+    if (!inside(key)) continue;
+    cache[moved(key)] = cache[key];
+    delete cache[key];
+    count++;
+  }
+  queue = queue.map((f) => (inside(f.path) ? { ...f, path: moved(f.path) } : f));
+  if (count) saveCache();
+  dbg('loudness', `moved ${count} measurement(s) to ${newDir}`);
+}
+
 function gatesOpen() {
   const s = useAppStore.getState();
   return s.musicNormalize && s.normalizerMode === 'contextual' && !s.isDownloading;

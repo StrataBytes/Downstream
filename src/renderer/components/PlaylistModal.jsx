@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import useAppStore from '../stores/useAppStore';
-import { addPlaylistToQueue } from '../services/downloadService';
+import { addPlaylistToQueue, LARGE_BATCH } from '../services/downloadService';
+
+const count = new Intl.NumberFormat();
 
 export default function PlaylistModal() {
   const { open, info, quality, format } = useAppStore((s) => s.playlistModal);
@@ -60,7 +62,7 @@ export default function PlaylistModal() {
     <div className={`playlist-panel ${closing ? 'playlist-panel-closing' : ''}`}>
       <div className="playlist-panel-header">
         <h2>Playlist</h2>
-        <span className="queue-count">{videos.length} videos</span>
+        <span className="queue-count">{count.format(videos.length)} videos</span>
       </div>
 
       <div className="modal-actions">
@@ -72,8 +74,8 @@ export default function PlaylistModal() {
         {info.truncated && (
           <div className="playlist-truncated-warning">
             {info.isRadio
-              ? `⚠️ Radio limited to first ${videos.length} videos to prevent rate limiting`
-              : `⚠️ Playlist limited to first ${videos.length} videos`}
+              ? `⚠️ Mixes never end, so only the first ${videos.length} videos are listed`
+              : `⚠️ YouTube stopped answering, so only ${count.format(videos.length)}${info.total ? ` of ${count.format(info.total)}` : ''} videos loaded`}
           </div>
         )}
 
@@ -89,6 +91,12 @@ export default function PlaylistModal() {
           </div>
         ))}
       </div>
+
+      {selectedCount >= LARGE_BATCH && (
+        <div className="playlist-pacing-note">
+          Big batches take longer pauses between downloads, so YouTube doesn't block them.
+        </div>
+      )}
 
       <div className="modal-buttons">
         <button onClick={handleAdd}>Add {selectedCount} Selected</button>

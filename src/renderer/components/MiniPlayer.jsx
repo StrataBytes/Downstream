@@ -1,13 +1,14 @@
 import useAppStore from '../stores/useAppStore';
 import ScrollingText from './ScrollingText';
 
-export default function MiniPlayer() {
+// leaving fades it out along with the view when the player is on its way in.
+export default function MiniPlayer({ leaving }) {
   const currentView = useAppStore((s) => s.currentView);
   const homeIdleMode = useAppStore((s) => s.homeIdleMode);
   const musicCurrent = useAppStore((s) => s.musicCurrent);
   const musicPlaying = useAppStore((s) => s.musicPlaying);
   const setMusicPlaying = useAppStore((s) => s.setMusicPlaying);
-  const setCurrentView = useAppStore((s) => s.setCurrentView);
+  const goToView = useAppStore((s) => s.goToView);
   const playNextTrack = useAppStore((s) => s.playNextTrack);
   const playPrevTrack = useAppStore((s) => s.playPrevTrack);
   const isDownloading = useAppStore((s) => s.isDownloading);
@@ -16,7 +17,7 @@ export default function MiniPlayer() {
   if (currentView === 'player' || !musicCurrent) return null;
 
   return (
-    <div className={`mini-player${currentView === 'home' && homeIdleMode ? ' mini-player-idle' : ''}`}>
+    <div className={`mini-player${currentView === 'home' && homeIdleMode ? ' mini-player-idle' : ''}${leaving ? ' mini-player-leaving' : ''}`}>
       <button className="mini-player-btn" onClick={playPrevTrack} title="Previous">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <rect x="3" y="5" width="3" height="14" rx="1" />
@@ -52,7 +53,7 @@ export default function MiniPlayer() {
 
       <button
         className={`mini-player-return${busy ? ' mini-player-return-disabled' : ''}`}
-        onClick={() => !busy && setCurrentView('player')}
+        onClick={() => !busy && goToView('player')}
         title={busy ? 'Busy. Wait for downloads to finish' : 'Return to player'}
         disabled={busy}
       >

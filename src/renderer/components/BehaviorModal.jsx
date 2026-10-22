@@ -23,7 +23,7 @@ const VIEW_MODES = [
   },
   {
     id: 'immersive',
-    name: 'Immersive',
+    name: 'Voyager',
     description: 'A compact bottom player that fades away while listening. Move the mouse to bring it back.',
   },
 ];
@@ -101,12 +101,48 @@ const VISUAL_EFFECTS_TOGGLES = [
     description: 'Keep the paused video frame visible instead of fading to the default background.',
     liteOverride: 'liteDisableVideoBackground',
   },
+];
+
+const VISUALIZER_TOGGLES = [
   {
     key: 'behaviorHideVisualizer',
     setter: 'setBehaviorHideVisualizer',
     label: 'Hide Visualizer',
     description: 'Why would you disable this?',
     liteOverride: 'liteDisableVisualizer',
+  },
+];
+
+const VISUALIZER_STYLES = [
+  {
+    id: 'modern',
+    name: 'Modern',
+    description: 'The newest version of the visualizer, tuned to be smooth and clear across the whole song.',
+  },
+  {
+    id: 'legacy',
+    name: 'Legacy',
+    description: 'The original visualizer, exactly as it used to look.',
+  },
+];
+
+const VISUALIZER_DETAIL = [
+  {
+    id: 'standard',
+    name: 'Standard',
+    description: '80 bars, the original look.',
+  },
+  {
+    id: 'high',
+    name: 'High',
+    description: '120 bars, half again as much detail.',
+    warning: 'Uses a bit more performance than Standard.',
+  },
+  {
+    id: 'ultra',
+    name: 'Ultra',
+    description: '160 bars, double the detail. Looks best with the window wide.',
+    warning: 'Uses the most performance. Switch back to Standard if the player starts to feel slow.',
   },
 ];
 
@@ -181,8 +217,81 @@ function ToggleGroup({ toggles, store }) {
   );
 }
 
+// a slider that snaps to one notch per option, with each option's name under its notch.
+function NotchedSlider({ label, options, value, onChange }) {
+  const trackRef = useRef(null);
+  const index = Math.max(0, options.findIndex((o) => o.id === value));
+  const last = options.length - 1;
+  const at = (i) => `${(i / last) * 100}%`;
+
+  const select = (i) => {
+    const next = options[Math.min(last, Math.max(0, i))];
+    if (next.id !== value) onChange(next.id);
+  };
+
+  // the nearest notch to the pointer, so dragging snaps from one to the next.
+  const pick = (e) => {
+    const rect = trackRef.current.getBoundingClientRect();
+    select(Math.round(((e.clientX - rect.left) / rect.width) * last));
+  };
+
+  const handleKeyDown = (e) => {
+    const step = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, Home: -last, End: last }[e.key];
+    if (step === undefined) return;
+    e.preventDefault();
+    select(index + step);
+  };
+
+  return (
+    <div className="notched-slider">
+      <div
+        className="notched-slider-hit"
+        role="slider"
+        tabIndex={0}
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={last}
+        aria-valuenow={index}
+        aria-valuetext={options[index].name}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          pick(e);
+        }}
+        onPointerMove={(e) => e.currentTarget.hasPointerCapture(e.pointerId) && pick(e)}
+        onKeyDown={handleKeyDown}
+      >
+        <div className="notched-slider-track" ref={trackRef}>
+          <div className="notched-slider-fill" style={{ width: at(index) }} />
+          {options.map((option, i) => (
+            <span
+              key={option.id}
+              className={`notched-slider-notch${i <= index ? ' notched-slider-notch-on' : ''}`}
+              style={{ left: at(i) }}
+            />
+          ))}
+          <div className="notched-slider-thumb" style={{ left: at(index) }} />
+        </div>
+      </div>
+      <div className="notched-slider-labels">
+        {options.map((option, i) => (
+          <button
+            key={option.id}
+            className={`notched-slider-label${i === index ? ' notched-slider-label-active' : ''}`}
+            style={{ left: at(i) }}
+            tabIndex={-1}
+            onClick={() => select(i)}
+          >
+            {option.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function BehaviorModal() {
   const behaviorOpen = useAppStore((s) => s.behaviorOpen);
+  const currentView = useAppStore((s) => s.currentView);
   const setBehaviorOpen = useAppStore((s) => s.setBehaviorOpen);
   const playerViewMode = useAppStore((s) => s.playerViewMode);
   const setPlayerViewMode = useAppStore((s) => s.setPlayerViewMode);
@@ -191,6 +300,13 @@ export default function BehaviorModal() {
   const normalizerReactivePreset = useAppStore((s) => s.normalizerReactivePreset);
   const setNormalizerReactivePreset = useAppStore((s) => s.setNormalizerReactivePreset);
   const loudnessScanningTrack = useAppStore((s) => s.loudnessScanningTrack);
+  const visualizerStyle = useAppStore((s) => s.visualizerStyle);
+  const setVisualizerStyle = useAppStore((s) => s.setVisualizerStyle);
+  const visualizerDetail = useAppStore((s) => s.visualizerDetail);
+  const setVisualizerDetail = useAppStore((s) => s.setVisualizerDetail);
+  const visualizerHidden = useAppStore((s) => s.behaviorHideVisualizer || (s.renderProfile === 'lite' && s.liteDisableVisualizer));
+  const detailLevel = VISUALIZER_DETAIL.find((l) => l.id === visualizerDetail) || VISUALIZER_DETAIL[0];
+  const style = VISUALIZER_STYLES.find((v) => v.id === visualizerStyle) || VISUALIZER_STYLES[0];
   const store = useAppStore();
 
   const [confirmingMemoryReset, setConfirmingMemoryReset] = useState(false);
@@ -220,7 +336,7 @@ export default function BehaviorModal() {
     });
   };
 
-  if (!behaviorOpen) return null;
+  if (!behaviorOpen || currentView !== 'player') return null;
 
   return (
     <div className="behavior-backdrop" onClick={() => setBehaviorOpen(false)}>
@@ -367,17 +483,13 @@ export default function BehaviorModal() {
 
             {normalizerMode === 'reactive' && (
               <div className="behavior-subpanel">
-                <div className="behavior-pill-row">
-                  {REACTIVE_PRESETS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      className={`behavior-pill${normalizerReactivePreset === preset.id ? ' behavior-pill-active' : ''}`}
-                      onClick={() => setNormalizerReactivePreset(preset.id)}
-                    >
-                      {preset.name}
-                    </button>
-                  ))}
-                </div>
+                <span className="behavior-subpanel-label">Aggressiveness</span>
+                <NotchedSlider
+                  label="Aggressiveness"
+                  options={REACTIVE_PRESETS}
+                  value={normalizerReactivePreset}
+                  onChange={setNormalizerReactivePreset}
+                />
                 <p className="behavior-subpanel-note">
                   {REACTIVE_PRESETS.find((p) => p.id === normalizerReactivePreset)?.description}
                 </p>
@@ -397,6 +509,41 @@ export default function BehaviorModal() {
               <p className="behavior-section-desc">Adjust how the player looks. Some options may be locked by Lite Rendering.</p>
             </div>
             <ToggleGroup toggles={VISUAL_EFFECTS_TOGGLES} store={store} />
+            <div className="behavior-subsection">
+              <div className="behavior-section-header">
+                <h4 className="behavior-subsection-title">Visualizer</h4>
+                <p className="behavior-section-desc">The bars that move with the music.</p>
+              </div>
+              <ToggleGroup toggles={VISUALIZER_TOGGLES} store={store} />
+              <div className={`behavior-subsection-options${visualizerHidden ? ' behavior-subsection-dimmed' : ''}`}>
+                <div>
+                  <span className="behavior-subpanel-label">Style</span>
+                  <div className="behavior-pill-row">
+                    {VISUALIZER_STYLES.map((option) => (
+                      <button
+                        key={option.id}
+                        className={`behavior-pill${style.id === option.id ? ' behavior-pill-active' : ''}`}
+                        onClick={() => setVisualizerStyle(option.id)}
+                      >
+                        {option.name}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="behavior-subpanel-note">{style.description}</p>
+                </div>
+                <div>
+                  <span className="behavior-subpanel-label">Detail</span>
+                  <NotchedSlider
+                    label="Visualizer detail"
+                    options={VISUALIZER_DETAIL}
+                    value={visualizerDetail}
+                    onChange={setVisualizerDetail}
+                  />
+                  <p className="behavior-subpanel-note">{detailLevel.description}</p>
+                  {detailLevel.warning && <p className="behavior-subpanel-warning">{detailLevel.warning}</p>}
+                </div>
+              </div>
+            </div>
           </section>
 
           <div className="behavior-divider" />

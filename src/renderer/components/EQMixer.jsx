@@ -42,6 +42,7 @@ function loadActivePreset() {
 
 export default function EQMixer() {
   const eqOpen = useAppStore((s) => s.eqOpen);
+  const currentView = useAppStore((s) => s.currentView);
   const setEqOpen = useAppStore((s) => s.setEqOpen);
   const eqBands = useAppStore((s) => s.eqBands);
   const setEqBand = useAppStore((s) => s.setEqBand);
@@ -91,7 +92,7 @@ export default function EQMixer() {
     setConfirmingReset(false);
   };
 
-  if (!eqOpen && !closing) return null;
+  if ((!eqOpen && !closing) || currentView !== 'player') return null;
 
   const handleClose = () => {
     setConfirmingReset(false);

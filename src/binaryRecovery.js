@@ -109,6 +109,7 @@ function describeBinaryFailure(binaryLabel, err) {
 }
 
 module.exports = {
+  downloadToFile,
   unblockFile,
   redownloadYtDlp,
   redownloadFfmpeg,

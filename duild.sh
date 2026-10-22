@@ -2,7 +2,7 @@
 set -e
 
 echo "========================================"
-echo "  Downstream v2.2.8 - Build Installer"
+echo "  Downstream v2.4.0 - Build Installer"
 echo "========================================"
 echo
 

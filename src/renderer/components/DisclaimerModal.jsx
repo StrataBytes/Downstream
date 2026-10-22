@@ -15,7 +15,7 @@ const PLAYER_DISCLAIMER = {
 };
 
 export default function DisclaimerModal({ type, onAccept }) {
-  const setCurrentView = useAppStore((s) => s.setCurrentView);
+  const goToView = useAppStore((s) => s.goToView);
   const disclaimer = type === 'download' ? DOWNLOAD_DISCLAIMER : PLAYER_DISCLAIMER;
 
   const handleAccept = () => {
@@ -24,7 +24,7 @@ export default function DisclaimerModal({ type, onAccept }) {
   };
 
   const handleDecline = () => {
-    setCurrentView('home');
+    goToView('home');
   };
 
   return (

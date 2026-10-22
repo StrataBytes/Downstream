@@ -4,6 +4,7 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { unblockFile, redownloadYtDlp, YT_DLP_WIN_VERSION } = require('../src/binaryRecovery');
+const { installRelease, EXE_NAME: YT_DLP_MACOS_EXE } = require('../src/ytDlpMacos');
 
 const root = path.resolve(__dirname, '..');
 
@@ -62,16 +63,6 @@ function ensureFFmpeg() {
   unblockFile(bin);
 }
 
-// a zipapp starts with a "#!" shebang, a mach-o binary does not.
-function isShebangScript(file) {
-  if (!fs.existsSync(file)) return false;
-  const fd = fs.openSync(file, 'r');
-  const buf = Buffer.alloc(2);
-  fs.readSync(fd, buf, 0, 2, 0);
-  fs.closeSync(fd);
-  return buf[0] === 0x23 && buf[1] === 0x21; // '#' '!'
-}
-
 async function ensureYtDlp() {
   const isWin = process.platform === 'win32';
   const bin = path.join(root, 'node_modules', 'yt-dlp-exec', 'bin',
@@ -80,13 +71,11 @@ async function ensureYtDlp() {
   if (process.platform === 'darwin') {
     // yt-dlp-exec ships a python zipapp that needs an external python3 >= 3.10 on path.
     // gui-launched macos apps get a minimal path where `env python3` resolves to the system commandlinetools python (3.9), which yt-dlp rejects.
-    // ships the standalone yt-dlp_macos binary instead, a self-contained universal (x86_64 + arm64) mach-o with its own bundled python.
-    if (fs.existsSync(bin) && !isShebangScript(bin)) return;
-    console.log('Downloading standalone yt-dlp_macos binary...');
-    const url = `https://github.com/yt-dlp/yt-dlp/releases/download/${YT_DLP_MACOS_VERSION}/yt-dlp_macos`;
-    fs.mkdirSync(path.dirname(bin), { recursive: true });
-    execFileSync('curl', ['-sSfL', '-o', bin, url], { stdio: 'inherit' });
-    fs.chmodSync(bin, 0o755);
+    // ships the official unpacked yt-dlp_macos build instead, a self-contained universal (x86_64 + arm64) mach-o with its own bundled python.
+    const dir = path.join(root, 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp_macos');
+    if (fs.existsSync(path.join(dir, YT_DLP_MACOS_EXE))) return;
+    console.log(`Downloading unpacked yt-dlp_macos build (${YT_DLP_MACOS_VERSION})...`);
+    await installRelease('yt-dlp/yt-dlp', YT_DLP_MACOS_VERSION, dir);
     return;
   }
 
@@ -115,7 +104,7 @@ function ensurePermissions() {
   const bins = [
     path.join(root, 'node_modules', 'ffmpeg-static', 'ffmpeg'),
     path.join(root, 'node_modules', 'ffprobe-static', 'bin', 'darwin', process.arch, 'ffprobe'),
-    path.join(root, 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp'),
+    path.join(root, 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp_macos', YT_DLP_MACOS_EXE),
   ];
   for (const bin of bins) {
     try { fs.chmodSync(bin, 0o755); } catch {}

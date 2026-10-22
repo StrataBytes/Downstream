@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import useAppStore, { getAcceptedExtensions } from '../stores/useAppStore';
+import useAppStore from '../stores/useAppStore';
+import { readSource } from '../services/musicLibrary';
 
 const POLL_INTERVAL = 15000;
 
@@ -28,8 +29,7 @@ export default function NewFilesPopup() {
     if (!watchEnabled || !musicFolder || !isRelevantView) return;
 
     const interval = setInterval(async () => {
-      const exts = getAcceptedExtensions(useAppStore.getState());
-      const files = await window.electronAPI.readMusicFolder(musicFolder, exts);
+      const files = await readSource(musicFolder);
       if (files.length > knownCountRef.current) {
         setNewFilesDetected(true);
       }
@@ -39,12 +39,12 @@ export default function NewFilesPopup() {
   }, [watchEnabled, musicFolder, isRelevantView]);
 
   const handleReload = async () => {
+    // read before clearing the track, so the player never sits empty and starts fading to the folder screen.
+    const files = await readSource(musicFolder);
     setMusicPlaying(false);
     setMusicCurrent(null);
     useAppStore.getState().clearBackgroundThumbnail();
 
-    const exts = getAcceptedExtensions(useAppStore.getState());
-    const files = await window.electronAPI.readMusicFolder(musicFolder, exts);
     setMusicFiles(files);
     if (files.length > 0) {
       // same rule as folder load: with shuffle active, the restart track should be random, not the alphabetically-first file.

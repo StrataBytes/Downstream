@@ -3,7 +3,12 @@ import useAppStore from '../stores/useAppStore';
 
 export default function NowPlaying() {
   const nowPlaying = useAppStore((s) => s.nowPlaying);
-  const totalProgress = useAppStore((s) => s.totalProgress);
+  // the item being downloaded, which moves to history once it finishes.
+  const item = useAppStore((s) => {
+    const url = s.nowPlaying?.url;
+    if (!url) return null;
+    return s.queue.find((q) => q.url === url) || s.queueHistory.find((q) => q.url === url) || null;
+  });
   const titleRef = useRef(null);
   const [overflows, setOverflows] = useState(false);
 
@@ -30,10 +35,11 @@ export default function NowPlaying() {
 
   if (!nowPlaying) return null;
 
-  const percent =
-    totalProgress.total > 0
-      ? Math.floor((totalProgress.completed / totalProgress.total) * 100)
-      : 0;
+  const percent = item?.progress ?? 0;
+  const fillState = item?.completed ? ' fill-done'
+    : item?.failed ? ' fill-error'
+    : item?.status === 'Finalizing...' ? ' fill-finalizing'
+    : '';
 
   return (
     <div className="now-playing">
@@ -48,7 +54,7 @@ export default function NowPlaying() {
       <div className="now-playing-info">
         <div
           ref={titleRef}
-          className={`now-playing-title ${overflows ? 'now-playing-title-active' : ''}`}
+          className={`now-playing-title ${overflows ? 'now-playing-title-active' : ''}${nowPlaying.titleLoaded === false ? ' skeleton-loader' : ''}`}
         >
           <span className={overflows ? 'now-playing-title-scroll' : ''}>
             {nowPlaying.title}
@@ -65,13 +71,11 @@ export default function NowPlaying() {
         <div className="now-playing-progress">
           <div className="progress-bar-track">
             <div
-              className="progress-bar-fill"
+              className={`progress-bar-fill${fillState}`}
               style={{ width: `${percent}%` }}
             />
           </div>
-          <span className="progress-label">
-            {totalProgress.text} &middot; {totalProgress.completed}/{totalProgress.total}
-          </span>
+          <span className="progress-label">{item?.status}</span>
         </div>
       </div>
     </div>

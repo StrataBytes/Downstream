@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import useAppStore, { getAcceptedExtensions } from '../stores/useAppStore';
-import { dbg } from '../services/debugLog';
+import useAppStore from '../stores/useAppStore';
+import { sourceName } from '../services/musicLibrary';
+import MusicFolders from './MusicFolders';
 import ScrollingText from './ScrollingText';
 import { SHUFFLE_ICON, REPEAT_ICON } from '../utils/toggleIcons';
 
@@ -13,9 +13,6 @@ export default function MusicPlayer() {
   const musicShuffle = useAppStore((s) => s.musicShuffle);
   const musicRepeat = useAppStore((s) => s.musicRepeat);
   const musicNormalize = useAppStore((s) => s.musicNormalize);
-  const setMusicFolder = useAppStore((s) => s.setMusicFolder);
-  const setMusicFiles = useAppStore((s) => s.setMusicFiles);
-  const setMusicCurrent = useAppStore((s) => s.setMusicCurrent);
   const setMusicPlaying = useAppStore((s) => s.setMusicPlaying);
   const setMusicLibraryOpen = useAppStore((s) => s.setMusicLibraryOpen);
   const toggleMusicRepeat = useAppStore((s) => s.toggleMusicRepeat);
@@ -30,123 +27,20 @@ export default function MusicPlayer() {
   const behaviorOpen = useAppStore((s) => s.behaviorOpen);
   const setBehaviorOpen = useAppStore((s) => s.setBehaviorOpen);
   const playerViewMode = useAppStore((s) => s.playerViewMode);
-  const musicFolderView = useAppStore((s) => s.musicFolderView);
   const setMusicFolderView = useAppStore((s) => s.setMusicFolderView);
-  const savedFolders = useAppStore((s) => s.savedFolders);
-  const addSavedFolder = useAppStore((s) => s.addSavedFolder);
-  const removeSavedFolder = useAppStore((s) => s.removeSavedFolder);
+  const library = useAppStore((s) => s.library);
+  const folderScreen = useAppStore((s) => s.folderScreen);
   const loudnessScanningTrack = useAppStore((s) => s.loudnessScanningTrack);
   const setNormInfoOpen = useAppStore((s) => s.setNormInfoOpen);
 
-  const [toast, setToast] = useState(null);
-
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(t);
-  }, [toast]);
-
   const isImmersive = playerViewMode === 'immersive';
-
-  const loadFolder = async (folder) => {
-    setMusicFolder(folder);
-    const state = useAppStore.getState();
-    const exts = getAcceptedExtensions(state);
-    dbg('library', `loading "${folder}" (accepts ${exts.join(', ')})`);
-    const files = await window.electronAPI.readMusicFolder(folder, exts);
-
-    if (files.length === 0) {
-      dbg('library', '!', 'no supported files found');
-      setToast(`No supported files found. Add ${exts.map(e => '.' + e).join(', ')} files to this folder.`);
-      setMusicFolder(null);
-      return;
-    }
-
-    // when shuffle will be active (already on, or about to be enabled by shuffle on start below), the first track must be random too.
-    // toggleMusicShuffle anchors its queue on the current track, so seeding with files[0] made the same alphabetically-first song open every session even though the rest of the queue was shuffled.
-    const willShuffle = state.musicShuffle || state.behaviorShuffleOnStart;
-    const first = willShuffle ? files[Math.floor(Math.random() * files.length)] : files[0];
-    dbg('library', `loaded ${files.length} track(s), auto-selecting "${first.name}"${willShuffle ? ' (random start)' : ''}`);
-    setMusicFiles(files);
-    setMusicCurrent(first);
-    setMusicFolderView(false);
-    setToast(null);
-
-    if (state.behaviorNormalizeOnStart && !state.musicNormalize) {
-      state.toggleMusicNormalize();
-    }
-    if (state.behaviorShuffleOnStart && !state.musicShuffle) {
-      state.toggleMusicShuffle();
-    }
-  };
-
-  const handleAddFolder = async () => {
-    const folder = await window.electronAPI.selectMusicFolder();
-    if (!folder) return;
-    addSavedFolder(folder);
-    await loadFolder(folder);
-  };
-
-  const handleRemoveFolder = (e, folder) => {
-    e.stopPropagation();
-    removeSavedFolder(folder);
-  };
 
   const handlePlayPause = () => {
     if (!musicCurrent) return;
     setMusicPlaying(!musicPlaying);
   };
 
-  const showFolderSelect = !musicFolder || musicFolderView || (!musicPlaying && !musicCurrent);
-  if (showFolderSelect) {
-    return (
-      <div className="music-folder-select">
-        <h2 className="folder-select-title">Select a Folder</h2>
-        <div className="folder-grid">
-          {savedFolders.map((f) => (
-            <div
-              key={f}
-              className={`folder-card${f === musicFolder ? ' folder-card-active' : ''}`}
-              onClick={() => loadFolder(f)}
-              title={f}
-            >
-              <button
-                className="folder-card-remove"
-                onClick={(e) => handleRemoveFolder(e, f)}
-                title="Remove"
-              >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-              <svg className="folder-card-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-              </svg>
-              <span className="folder-card-name">{f.split(/[/\\]/).pop()}</span>
-            </div>
-          ))}
-          <div className="folder-card folder-card-add" onClick={handleAddFolder} title="Add new folder">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            <span className="folder-card-name">Add Folder</span>
-          </div>
-        </div>
-        {toast && (
-          <div className="folder-toast">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <span>{toast}</span>
-          </div>
-        )}
-      </div>
-    );
-  }
+  if (folderScreen) return <MusicFolders />;
 
   const isCommander = playerViewMode === 'commander';
 
@@ -227,7 +121,7 @@ export default function MusicPlayer() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
           </svg>
-          <span>{musicFolder.split(/[/\\]/).pop()}</span>
+          <span>{sourceName(musicFolder, library)}</span>
         </button>
         <button type="button"
           className="music-folder-name"

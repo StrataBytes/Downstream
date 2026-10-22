@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import useAppStore from '../stores/useAppStore';
+import AdvancedOptions from './AdvancedOptions';
 
 const LITE_TOGGLES = [
   {
@@ -14,7 +15,7 @@ const LITE_TOGGLES = [
     setter: 'setLiteDisableAnimations',
     label: 'Reduce Animations',
     description:
-      'Shortens transitions and slide-in animations to near-instant. Spinners and the startup sequence are kept intact.',
+      'Shortens transitions and slide-in animations to near-instant. Spinners, progress shimmers, scrolling titles and the startup sequence keep moving.',
   },
   {
     key: 'liteDisableVisualizer',
@@ -75,6 +76,11 @@ const TOUCH_BAR_TOGGLES = [
     label: 'Music Controls Outside the Player',
     description: 'While a song is loaded, keeps previous, play/pause and next on the home screen bar, and play/pause on the downloader bar.',
   },
+  {
+    key: 'controlStrip',
+    label: 'Player in the Control Strip',
+    description: 'While a song is loaded, adds a music button beside brightness and volume. Tap it from any app for the player controls, which stay up until you close them.',
+  },
 ];
 
 // modular profile list, add new rendering profiles here as they're built.
@@ -94,7 +100,7 @@ const PROFILES = [
   {
     id: 'lite',
     name: 'Lite Mode',
-    description: 'Reduces GPU-intensive effects for smoother performance on older or low-power hardware.',
+    description: 'Turns off blur, the most demanding effect, for smoother performance on older or low-power hardware. Expand it to turn off more.',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
@@ -154,114 +160,6 @@ function ProfileTile({ profile, active, expanded, onSelect, onToggleExpand, stor
           ) : (
             <p className="profile-tile-empty">Nothing to configure for this profile yet.</p>
           )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function YtDlpVersionPicker() {
-  const [info, setInfo] = useState(null);
-  const [versions, setVersions] = useState([]);
-  const [loadingInfo, setLoadingInfo] = useState(true);
-  const [loadingVersions, setLoadingVersions] = useState(false);
-  const [switchingTo, setSwitchingTo] = useState(null);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    let live = true;
-    window.electronAPI.getYtDlpInfo().then((result) => {
-      if (!live) return;
-      if (result?.error) setError(result.error);
-      else setInfo(result);
-      setLoadingInfo(false);
-    }).catch(() => {
-      if (live) {
-        setError('Could not read the active yt-dlp version.');
-        setLoadingInfo(false);
-      }
-    });
-    return () => { live = false; };
-  }, []);
-
-  const fetchVersions = async () => {
-    setLoadingVersions(true);
-    setError(null);
-    try {
-      const result = await window.electronAPI.getYtDlpVersions();
-      if (result?.error) setError(result.error);
-      else setVersions(result?.versions || []);
-    } catch {
-      setError('Could not fetch official yt-dlp releases.');
-    } finally {
-      setLoadingVersions(false);
-    }
-  };
-
-  const selectVersion = async (target) => {
-    setSwitchingTo(target);
-    setError(null);
-    try {
-      const result = await window.electronAPI.setYtDlpVersion(target);
-      if (result?.error) setError(result.error);
-      else setInfo(result);
-    } catch {
-      setError('Could not change the yt-dlp version.');
-    } finally {
-      setSwitchingTo(null);
-    }
-  };
-
-  const activeLabel = loadingInfo
-    ? 'Checking active version...'
-    : info?.version || 'Unavailable';
-  const targetLabel = info?.automatic
-    ? 'Automatic nightly updates'
-    : `Pinned to ${info?.target || 'an unknown release'}`;
-
-  return (
-    <div className="advanced-ytdlp">
-      <div className="advanced-ytdlp-heading">
-        <div>
-          <span className="advanced-ytdlp-title">YT-DLP</span>
-          <span className="advanced-ytdlp-desc">Controls the downloader executable used by Downstream.</span>
-        </div>
-        <span className="advanced-ytdlp-version">{activeLabel}</span>
-      </div>
-      <div className="advanced-ytdlp-status">{targetLabel}</div>
-
-      <div className="advanced-ytdlp-actions">
-        <button className="advanced-action-button" onClick={fetchVersions} disabled={loadingVersions || !!switchingTo}>
-          {loadingVersions ? 'Fetching versions...' : 'Fetch available versions'}
-        </button>
-        {!info?.automatic && (
-          <button className="advanced-action-button advanced-action-button-muted" onClick={() => selectVersion('nightly')} disabled={!!switchingTo}>
-            {switchingTo === 'nightly' ? 'Restoring automatic updates...' : 'Use automatic nightly updates'}
-          </button>
-        )}
-      </div>
-
-      {error && <p className="advanced-ytdlp-error">{error}</p>}
-
-      {versions.length > 0 && (
-        <div className="advanced-version-list">
-          <p className="advanced-version-list-note">Choosing a release pins Downstream to it until you restore automatic nightly updates.</p>
-          {versions.map((release) => {
-            const selected = info?.target === release.id;
-            const changing = switchingTo === release.id;
-            return (
-              <button
-                key={release.id}
-                className={`advanced-version-option${selected ? ' advanced-version-option-selected' : ''}`}
-                onClick={() => selectVersion(release.id)}
-                disabled={!!switchingTo || selected}
-              >
-                <span>{release.version}</span>
-                <small>{release.channel}{selected ? ' · Selected' : ''}</small>
-                {changing && <em>Switching...</em>}
-              </button>
-            );
-          })}
         </div>
       )}
     </div>
@@ -391,7 +289,7 @@ export default function OptionsModal() {
             >
               <span>
                 <strong>Advanced Options</strong>
-                <small>Downloader recovery and compatibility controls</small>
+                <small>Downloader, download pacing and troubleshooting tools</small>
               </span>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="6 9 12 15 18 9" />
@@ -406,7 +304,7 @@ export default function OptionsModal() {
                     <button className="advanced-got-it" onClick={() => setAdvancedAcknowledged(true)}>Got it</button>
                   </div>
                 ) : (
-                  <YtDlpVersionPicker />
+                  <AdvancedOptions />
                 )}
               </div>
             )}

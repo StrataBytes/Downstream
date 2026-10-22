@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import useAppStore from './stores/useAppStore';
+import { wantsFolderScreen } from './services/musicLibrary';
 import { useIPCListeners } from './hooks/useIPC';
 import { useMediaKeybinds } from './hooks/useMediaKeybinds';
 import { useTouchBar } from './hooks/useTouchBar';
@@ -40,6 +41,14 @@ function needsGuide(view) {
   return false;
 }
 
+// how long the old screen takes to fade out, and the new one to fade in.
+const FADE_MS = 250;
+
+// the screen navigation and the music point at right now.
+function targetScreen(s) {
+  return s.nextView === 'player' && wantsFolderScreen(s) ? 'folders' : s.nextView;
+}
+
 function ViewContent({ view }) {
   if (view === 'home') return <HomeView />;
   return <DownloadView />;
@@ -51,52 +60,40 @@ export default function App() {
   useMediaKeybinds();
   useTouchBar();
 
+  const nextView = useAppStore((s) => s.nextView);
   const currentView = useAppStore((s) => s.currentView);
-  const [displayed, setDisplayed] = useState(currentView);
+  const target = useAppStore(targetScreen);
+  const shown = useAppStore((s) => (s.folderScreen ? 'folders' : s.currentView));
   const [fading, setFading] = useState(false);
   const [disclaimer, setDisclaimer] = useState(null);
   const [guide, setGuide] = useState(null);
-  const firstRender = useRef(true);
+  const fadingSince = useRef(null);
 
   useEffect(() => {
-    if (needsDisclaimer(currentView)) {
-      setDisclaimer(currentView);
-      return;
-    }
-    setDisclaimer(null);
+    setDisclaimer(needsDisclaimer(nextView) ? nextView : null);
+  }, [nextView]);
 
-    if (firstRender.current) {
-      firstRender.current = false;
-      setDisplayed(currentView);
-      return;
-    }
-    if (currentView === displayed) return;
-
-    // going home skips fade-out so DownloadView never flashes.
-    // homeView handles its own reveal animation via contentStyle.
-    if (currentView === 'home') {
-      setDisplayed('home');
-      return;
-    }
-
-    setFading(true);
-    const t = setTimeout(() => {
-      setDisplayed(currentView);
+  // every change of screen fades the old one out, swaps while nothing shows, then fades the new one in.
+  // that covers going between views both ways, and the player's folder screen.
+  // a change of mind halfway keeps the time already spent fading out.
+  // a view still waiting on its disclaimer stays put, and accepting it clears disclaimer, which runs this again.
+  useEffect(() => {
+    if (needsDisclaimer(nextView) || target === shown) {
+      fadingSince.current = null;
       setFading(false);
-    }, 250);
-    return () => clearTimeout(t);
-  }, [currentView]);
-
-  useEffect(() => {
-    if (disclaimer === null && currentView !== displayed) {
-      setFading(true);
-      const t = setTimeout(() => {
-        setDisplayed(currentView);
-        setFading(false);
-      }, 250);
-      return () => clearTimeout(t);
+      return;
     }
-  }, [disclaimer]);
+    fadingSince.current ??= performance.now();
+    setFading(true);
+    const instant = document.body.classList.contains('lite-no-anim');
+    const left = instant ? 0 : FADE_MS - (performance.now() - fadingSince.current);
+    const t = setTimeout(() => {
+      fadingSince.current = null;
+      useAppStore.getState().showScreen(target);
+      setFading(false);
+    }, Math.max(0, left));
+    return () => clearTimeout(t);
+  }, [nextView, target, shown, disclaimer]);
 
   return (
     <>
@@ -105,9 +102,9 @@ export default function App() {
       <SongProgressBar />
       <AudioEngine />
       <AudioVisualizer />
-      <MiniPlayer />
+      <MiniPlayer leaving={fading && nextView === 'player'} />
       <div className={`view-transition${fading ? ' view-fade-out' : ' view-fade-in'}`}>
-        <ViewContent view={displayed} />
+        <ViewContent view={currentView} />
       </div>
       {disclaimer && (
         <DisclaimerModal

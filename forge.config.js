@@ -3,14 +3,16 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 const { VitePlugin } = require('@electron-forge/plugin-vite');
 const path = require('path');
 const fs = require('fs');
+const { buildControlStrip } = require('./scripts/buildControlStrip');
 
-function copyDirSync(src, dest) {
+function copyDirSync(src, dest, skip = () => false) {
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
     const srcPath = path.join(src, entry.name);
     const destPath = path.join(dest, entry.name);
+    if (skip(srcPath)) continue;
     if (entry.isDirectory()) {
-      copyDirSync(srcPath, destPath);
+      copyDirSync(srcPath, destPath, skip);
     } else {
       fs.copyFileSync(srcPath, destPath);
     }
@@ -43,7 +45,7 @@ module.exports = {
       ? [
           './node_modules/ffmpeg-static/ffmpeg',
           `./node_modules/ffprobe-static/bin/darwin/${process.arch}/ffprobe`,
-          './node_modules/yt-dlp-exec/bin/yt-dlp',
+          './node_modules/yt-dlp-exec/bin/yt-dlp_macos',
         ]
       : [
           './node_modules/ffmpeg-static/ffmpeg.exe',
@@ -52,9 +54,15 @@ module.exports = {
         ],
   },
   hooks: {
-    packageAfterCopy: async (_config, buildPath) => {
+    // the control strip helper is built before running or packaging on macos.
+    generateAssets: async () => {
+      buildControlStrip();
+    },
+    packageAfterCopy: async (_config, buildPath, _electronVersion, platform) => {
       const rootDeps = ['ytdl-core', 'yt-dlp-exec'];
       const projectNM = path.resolve(__dirname, 'node_modules');
+      // the unpacked mac yt-dlp ships as an extra resource, not inside the app archive.
+      const macYtDlpDir = path.join(projectNM, 'yt-dlp-exec', 'bin', 'yt-dlp_macos');
 
       function resolvePkgDir(pkgName, searchFrom) {
         try {
@@ -76,7 +84,7 @@ module.exports = {
 
         const relFromNM = path.relative(projectNM, srcDir);
         const destDir = path.join(buildPath, 'node_modules', relFromNM);
-        copyDirSync(srcDir, destDir);
+        copyDirSync(srcDir, destDir, (p) => p === macYtDlpDir);
 
         try {
           const pkg = JSON.parse(fs.readFileSync(path.join(srcDir, 'package.json'), 'utf8'));
@@ -89,6 +97,16 @@ module.exports = {
       const visited = new Set();
       for (const dep of rootDeps) {
         collectDeps(dep, projectNM, visited);
+      }
+
+      // the control strip helper ships in resources beside the other macos binaries.
+      if (platform === 'darwin') {
+        const helper = buildControlStrip();
+        if (helper) {
+          const dest = path.join(buildPath, '..', path.basename(helper));
+          fs.copyFileSync(helper, dest);
+          fs.chmodSync(dest, 0o755);
+        }
       }
     },
   },
@@ -152,6 +170,18 @@ module.exports = {
         {
           // same as above, for touchBar.js.
           entry: 'src/touchBar.js',
+          config: 'vite.main.config.mjs',
+          target: 'main',
+        },
+        {
+          // same as above, for ytDlpMacos.js.
+          entry: 'src/ytDlpMacos.js',
+          config: 'vite.main.config.mjs',
+          target: 'main',
+        },
+        {
+          // same as above, for controlStrip.js, which touchBar.js requires.
+          entry: 'src/controlStrip.js',
           config: 'vite.main.config.mjs',
           target: 'main',
         },

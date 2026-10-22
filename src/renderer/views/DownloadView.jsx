@@ -12,7 +12,7 @@ import NormalizationInfoModal from '../components/NormalizationInfoModal';
 
 export default function DownloadView() {
   const currentView = useAppStore((s) => s.currentView);
-  const setCurrentView = useAppStore((s) => s.setCurrentView);
+  const goToView = useAppStore((s) => s.goToView);
   const isDownloading = useAppStore((s) => s.isDownloading);
   const busy = isDownloading;
   const [guideOpen, setGuideOpen] = useState(false);
@@ -22,7 +22,7 @@ export default function DownloadView() {
       <div className="btn-corner-zone">
         <button
           className={`btn-back${busy ? ' btn-back-disabled' : ''}`}
-          onClick={() => !busy && setCurrentView('home')}
+          onClick={() => !busy && goToView('home')}
           title={busy ? 'Busy. Wait for downloads to finish' : 'Back to home'}
           disabled={busy}
         >

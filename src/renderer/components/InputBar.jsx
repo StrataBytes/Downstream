@@ -1,170 +1,86 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import useAppStore from '../stores/useAppStore';
-import { addLinkToQueue } from '../services/downloadService';
-import { validateMediaLink } from '../utils/linkCheck';
-import { dbg } from '../services/debugLog';
-import SearchResults from './SearchResults';
+import { submitLink } from '../services/downloadService';
+import { startSearch } from '../services/searchService';
+import { looksLikeUrl } from '../utils/linkCheck';
+import InputError, { useTimedError } from './InputError';
+import DownloadOptions from './DownloadOptions';
 
-function isUrl(str) {
-  return /^https?:\/\//i.test(str) || /^(www\.)/i.test(str);
+export function SearchIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7" />
+      <line x1="16.5" y1="16.5" x2="22" y2="22" />
+    </svg>
+  );
+}
+
+export function PlusIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
 }
 
 export default function InputBar() {
-  const [url, setUrl] = useState('');
-  const [quality, setQuality] = useState('high');
-  const [format, setFormat] = useState('mp4');
-  const [searchResults, setSearchResults] = useState(null);
-  const [searching, setSearching] = useState(false);
-  const [inputError, setInputError] = useState(null);
-  const errorTimerRef = useRef(null);
+  const [text, setText] = useState('');
+  const [error, showError, clearError] = useTimedError();
   const inputRef = useRef(null);
-  const openPlaylistModal = useAppStore((s) => s.openPlaylistModal);
-  const setLoading = useAppStore((s) => s.setLoading);
+  const revealed = useAppStore((s) => s.linkControlsRevealed);
+  const setRevealed = useAppStore((s) => s.setLinkControlsRevealed);
+  const isLink = looksLikeUrl(text.trim());
 
-  useEffect(() => () => clearTimeout(errorTimerRef.current), []);
-
-  const showError = (reason) => {
-    setInputError(reason);
-    clearTimeout(errorTimerRef.current);
-    errorTimerRef.current = setTimeout(() => setInputError(null), 5000);
+  const handleChange = (e) => {
+    setText(e.target.value);
+    clearError();
+    if (!revealed && looksLikeUrl(e.target.value.trim())) setRevealed(true);
   };
 
-  const handleAdd = async () => {
-    const trimmed = url.trim();
+  const submit = async () => {
+    const trimmed = text.trim();
     if (!trimmed) return;
-
-    if (!isUrl(trimmed)) {
-      setSearching(true);
-      setSearchResults(null);
-      dbg('search', `submit "${trimmed}"`);
-      try {
-        const results = await window.electronAPI.searchVideos(trimmed);
-        dbg('search', `got ${Array.isArray(results) ? results.length : 'non-array'} result(s)`);
-        setSearchResults(results);
-      } catch (err) {
-        dbg('search', '!', `error: ${err.message}`);
-        setSearchResults([]);
-      }
-      setSearching(false);
+    if (!looksLikeUrl(trimmed)) {
+      startSearch(trimmed);
       return;
     }
-
-    // links: validates before anything touches the network, so a rejected typo costs zero requests.
-    const check = validateMediaLink(trimmed);
-    if (!check.ok) {
-      dbg('link', '!', `rejected "${trimmed}": ${check.reason}`);
-      showError(check.reason);
-      return;
-    }
-
-    setSearchResults(null);
-
-    // playlist detection is a local url-param check, only actual playlists need the enumeration call (which the modal requires anyway).
-    // plain video links queue instantly with zero upfront fetches.
-    let isPlaylistLink = false;
-    try {
-      const parsed = new URL(check.url);
-      isPlaylistLink = parsed.searchParams.has('list') || parsed.searchParams.has('start_radio');
-    } catch { /* validator already vetted it */ }
-
-    if (isPlaylistLink) {
-      setLoading(true, 'Loading playlist...');
-      dbg('link', `enumerating playlist ${check.url}`);
-      try {
-        const playlistInfo = await window.electronAPI.getPlaylistInfo(check.url);
-        setLoading(false);
-        if (playlistInfo?.error) {
-          // yt-dlp itself failed (e.g. missing/blocked binary), don't queue the playlist link as a fake "single video", tell the user instead.
-          dbg('link', '!', `playlist enumeration failed: ${playlistInfo.message}`);
-          showError(playlistInfo.message);
-        } else if (playlistInfo?.videos?.length > 1) {
-          dbg('link', `playlist with ${playlistInfo.videos.length} videos`);
-          openPlaylistModal(playlistInfo, quality, format);
-        } else {
-          dbg('link', 'single video → queue');
-          addLinkToQueue(check.url, quality, format);
-        }
-      } catch (err) {
-        setLoading(false);
-        dbg('link', '!', `playlist check failed: ${err.message} -- adding as single`);
-        addLinkToQueue(check.url, quality, format);
-      }
-    } else {
-      dbg('link', `add ${check.url}`);
-      addLinkToQueue(check.url, quality, format);
-    }
-
-    setUrl('');
+    const { downloadQuality, downloadFormat } = useAppStore.getState();
+    const result = await submitLink(trimmed, downloadQuality, downloadFormat);
+    if (result?.error) showError(result.error);
+    // a cancelled playlist keeps the link in the field.
+    if (result) return;
+    setText('');
     // unfocusing brings the downloader touch bar back after a link is added.
     inputRef.current?.blur();
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') handleAdd();
-  };
-
   return (
-    <>
-      <div className="input-bar">
+    <div className="input-bar">
+      <div className="input-bar-intro">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        <span>What are you looking for?</span>
+      </div>
+      <div className="url-field">
         <input
           ref={inputRef}
           type="text"
           className="url-input"
-          placeholder="Search for something or paste a link..."
-          value={url}
-          onChange={(e) => { setUrl(e.target.value); setInputError(null); }}
-          onKeyDown={handleKeyDown}
+          placeholder="Search for anything, or paste a link"
+          value={text}
+          onChange={handleChange}
+          onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
         />
-        <div className="input-controls">
-          <select value={quality} onChange={(e) => setQuality(e.target.value)}>
-            <option value="highest">Highest</option>
-            <option value="high">1080p</option>
-            <option value="medium">720p</option>
-            <option value="low">480p</option>
-          </select>
-          <select value={format} onChange={(e) => setFormat(e.target.value)}>
-            <option value="mp4">MP4</option>
-            <option value="mp3">MP3</option>
-          </select>
-          <button className="btn-add" onClick={handleAdd} disabled={searching}>
-            {searching ? (
-              <span className="btn-add-searching">Searching...</span>
-            ) : isUrl(url.trim()) ? (
-              <>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                Add Link
-              </>
-            ) : (
-              <>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="7" />
-                  <line x1="16.5" y1="16.5" x2="22" y2="22" />
-                </svg>
-                Search
-              </>
-            )}
-          </button>
-        </div>
+        <button className="url-submit" onClick={submit} disabled={!text.trim()} title={isLink ? 'Add link' : 'Search'}>
+          {isLink ? <PlusIcon /> : <SearchIcon />}
+        </button>
       </div>
-      {inputError && (
-        <div className="input-bar-error">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="13" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <span>{inputError}</span>
-        </div>
-      )}
-      <SearchResults
-        results={searchResults}
-        quality={quality}
-        format={format}
-        onClear={() => setSearchResults(null)}
-      />
-    </>
+      {revealed && <DownloadOptions className="input-controls input-controls-reveal" />}
+      <InputError message={error} />
+    </div>
   );
 }

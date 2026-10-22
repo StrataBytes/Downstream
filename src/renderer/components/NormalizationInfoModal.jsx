@@ -3,8 +3,9 @@ import useAppStore from '../stores/useAppStore';
 export default function NormalizationInfoModal() {
   const normInfoOpen = useAppStore((s) => s.normInfoOpen);
   const setNormInfoOpen = useAppStore((s) => s.setNormInfoOpen);
+  const currentView = useAppStore((s) => s.currentView);
 
-  if (!normInfoOpen) return null;
+  if (!normInfoOpen || currentView !== 'player') return null;
 
   return (
     <div className="modal" onClick={() => setNormInfoOpen(false)}>

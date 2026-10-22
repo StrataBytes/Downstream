@@ -22,6 +22,9 @@ export default function MusicLibrary() {
   const musicFiles = useAppStore((s) => s.musicFiles);
   const musicCurrent = useAppStore((s) => s.musicCurrent);
   const musicLibraryOpen = useAppStore((s) => s.musicLibraryOpen);
+  const currentView = useAppStore((s) => s.currentView);
+  // the wide folder screen has no room beside it.
+  const folderScreen = useAppStore((s) => s.folderScreen);
   const setMusicCurrent = useAppStore((s) => s.setMusicCurrent);
   const setMusicLibraryOpen = useAppStore((s) => s.setMusicLibraryOpen);
   const sortBy = useAppStore((s) => s.musicLibrarySort);
@@ -59,7 +62,7 @@ export default function MusicLibrary() {
     return [...filtered].sort(compare);
   }, [musicFiles, searchQuery, sortBy]);
 
-  if (!musicLibraryOpen) return null;
+  if (!musicLibraryOpen || currentView !== 'player' || folderScreen) return null;
 
   const handleClose = () => {
     setClosing(true);

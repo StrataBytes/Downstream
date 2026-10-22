@@ -268,6 +268,7 @@
   font: inherit;
   font-size: 0.7em;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
@@ -277,12 +278,13 @@
 }
 .advanced-action-button:disabled, .advanced-version-option:disabled { cursor: default; opacity: 0.6; }
 
-.advanced-ytdlp { padding: 16px; }
-.advanced-ytdlp-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.advanced-ytdlp-heading > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.advanced-ytdlp-title { color: rgba(255, 255, 255, 0.86); font-size: 0.82em; font-weight: 600; }
-.advanced-ytdlp-desc { color: rgba(255, 255, 255, 0.35); font-size: 0.67em; line-height: 1.4; }
-.advanced-ytdlp-version {
+.advanced-panel { padding: 16px; }
+.advanced-panel + .advanced-panel { border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.advanced-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.advanced-panel-heading > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.advanced-panel-title { color: rgba(255, 255, 255, 0.86); font-size: 0.82em; font-weight: 600; }
+.advanced-panel-desc { color: rgba(255, 255, 255, 0.35); font-size: 0.67em; line-height: 1.4; }
+.advanced-panel-badge {
   flex-shrink: 0;
   max-width: 45%;
   overflow: hidden;
@@ -292,11 +294,22 @@
   font-size: 0.7em;
   white-space: nowrap;
 }
-.advanced-ytdlp-status { margin-top: 9px; color: rgba(255, 255, 255, 0.38); font-size: 0.68em; }
-.advanced-ytdlp-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.advanced-panel-status { margin-top: 9px; display: flex; flex-direction: column; gap: 3px; color: rgba(255, 255, 255, 0.38); font-size: 0.68em; line-height: 1.4; }
+.advanced-panel-status-busy { color: #79e0d4; }
+.advanced-panel-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .advanced-action-button-muted { border-color: rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.035); color: rgba(255, 255, 255, 0.58); }
 .advanced-action-button-muted:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.28); background: rgba(255, 255, 255, 0.075); }
-.advanced-ytdlp-error { margin: 11px 0 0; color: #ff8f8f; font-size: 0.68em; line-height: 1.4; }
+.advanced-action-button-danger { border-color: rgba(255, 143, 143, 0.4); background: rgba(255, 143, 143, 0.08); color: #ff8f8f; }
+.advanced-action-button-danger:hover:not(:disabled) { border-color: rgba(255, 143, 143, 0.7); background: rgba(255, 143, 143, 0.16); }
+.advanced-panel-error { margin: 11px 0 0; color: #ff8f8f; font-size: 0.68em; line-height: 1.4; }
+
+/* one setting per row, its description on the left and its control on the right. */
+.advanced-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 14px; }
+.advanced-row > div:first-child { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.advanced-row-label { color: rgba(255, 255, 255, 0.78); font-size: 0.74em; font-weight: 600; }
+.advanced-row-desc { color: rgba(255, 255, 255, 0.35); font-size: 0.66em; line-height: 1.45; }
+.advanced-row-result { color: #79e0d4; }
+.advanced-row-controls { flex-shrink: 0; display: flex; gap: 6px; }
 
 .advanced-version-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 14px; }
 .advanced-version-list-note { grid-column: 1 / -1; margin: 0 0 2px; color: rgba(255, 255, 255, 0.34); font-size: 0.66em; line-height: 1.4; }

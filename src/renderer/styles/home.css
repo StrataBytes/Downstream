@@ -1,13 +1,8 @@
 /* === intro sequence === */
-@keyframes introPhrase {
-  0%   { opacity: 0; transform: translateY(8px); }
-  27%  { opacity: 1; transform: translateY(0); }
-  73%  { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-6px); }
-}
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+@keyframes introFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .intro-overlay {
@@ -19,61 +14,12 @@
   pointer-events: none;
 }
 
-.intro-status {
-  position: absolute;
-  bottom: 22px;
-  left: 50%;
-  transform: translateX(-50%);
+.intro-greeting {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  animation: statusFadeIn 0.3s ease forwards;
-  white-space: nowrap;
-}
-
-@keyframes statusFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-.intro-status-row {
-  display: flex;
-  align-items: center;
   gap: 8px;
-}
-
-.intro-spinner {
-  width: 12px;
-  height: 12px;
-  border: 1.5px solid rgba(76, 208, 193, 0.2);
-  border-top-color: #4cd0c1;
-  border-radius: 50%;
-  animation: spin 0.75s linear infinite;
-  flex-shrink: 0;
-}
-
-.intro-status-check {
-  font-size: 0.8em;
-  color: #4cd0c1;
-  line-height: 1;
-}
-
-.intro-status-text {
-  font-size: 0.72em;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.35);
-  letter-spacing: 1px;
-}
-
-.intro-status-text.done {
-  color: #4cd0c1;
-}
-
-.intro-status-sub {
-  font-size: 0.62em;
-  color: rgba(255, 255, 255, 0.32);
-  letter-spacing: 0.5px;
+  animation: introFadeIn 0.6s ease both;
 }
 
 .intro-phrase {
@@ -81,7 +27,32 @@
   font-weight: 300;
   color: rgba(255, 255, 255, 0.72);
   letter-spacing: 0.5px;
-  animation: introPhrase 2.2s ease forwards;
+}
+
+.intro-time {
+  font-size: 0.95em;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* centered with left and right rather than a transform, which the fade-in animation would replace. */
+.intro-status {
+  position: absolute;
+  bottom: 22px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  animation: introFadeIn 0.4s ease 0.15s both;
+  white-space: nowrap;
+}
+
+.intro-status-text {
+  font-size: 0.68em;
+  color: rgba(255, 255, 255, 0.38);
+  letter-spacing: 0.5px;
+  animation: introFadeIn 0.25s ease both;
 }
 
 .home-content {

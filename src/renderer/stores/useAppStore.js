@@ -9,9 +9,56 @@ function fisherYatesShuffle(arr) {
   return shuffled;
 }
 
+const EMPTY_LIBRARY = { folders: [], mixtapes: [], collapsed: {}, sort: 'custom', lastSource: null };
+
+// mixtapes started out as collections, which each folder belonged to one of.
+function fromCollections(saved) {
+  const mixtapes = (saved.collections || []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    folders: saved.folders.filter((f) => f.collection === c.id).map((f) => f.path),
+  }));
+  const folders = saved.folders.map(({ path, color, pinned, lastPlayed }) => ({ path, color, pinned, lastPlayed }));
+  const lastSource = saved.lastSource?.replace(/^collection:/, 'mixtape:') || null;
+  const { collections, ...rest } = saved;
+  return { ...rest, folders, mixtapes, lastSource };
+}
+
+// saved music folders and mixtapes.
+// older versions kept a plain list of folder paths, which becomes the starting library.
+function loadLibrary() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('musicLibrary'));
+    if (Array.isArray(saved?.folders)) return { ...EMPTY_LIBRARY, ...(saved.mixtapes ? saved : fromCollections(saved)) };
+  } catch { /* rebuilt below */ }
+  const paths = JSON.parse(localStorage.getItem('savedMusicFolders') || '[]');
+  return { ...EMPTY_LIBRARY, folders: paths.map((path) => ({ path })) };
+}
+
+// lite turns off only the blur, which is what slows downstream down, and the other effects cost little without it.
+const LITE_DEFAULTS = { liteDisableBlur: true, liteDisableAnimations: false, liteDisableVisualizer: false, liteDisableVideoBackground: false };
+
+function saveLiteDefaults() {
+  Object.entries(LITE_DEFAULTS).forEach(([key, val]) => localStorage.setItem(key, String(val)));
+}
+
+// lite used to turn off every effect.
+// anyone already in it is moved to the blur-only lite once, after which their own choices stick.
+if (localStorage.getItem('renderProfile') === 'lite' && !localStorage.getItem('liteBlurOnlyApplied')) saveLiteDefaults();
+localStorage.setItem('liteBlurOnlyApplied', 'true');
+
 const useAppStore = create((set) => ({
+  // where navigation is headed.
+  // currentView and folderScreen are what's on screen, and only change once the old screen has faded out.
+  nextView: 'home',
+  goToView: (view) => set({ nextView: view }),
   currentView: 'home',
-  setCurrentView: (view) => set({ currentView: view }),
+  folderScreen: false,
+  showScreen: (screen) => set({ currentView: screen === 'folders' ? 'player' : screen, folderScreen: screen === 'folders' }),
+
+  // what the startup sequence is doing, null once the home screen is showing.
+  startupStep: 'Starting up',
+  setStartupStep: (step) => set({ startupStep: step }),
 
   homeIdleMode: false,
   setHomeIdleMode: (val) => set({ homeIdleMode: val }),
@@ -106,6 +153,21 @@ const useAppStore = create((set) => ({
   downloadFolder: null,
   setDownloadFolder: (path) => set({ downloadFolder: path }),
 
+  // shared by the link controls and the search footer.
+  downloadQuality: 'high',
+  setDownloadQuality: (quality) => set({ downloadQuality: quality }),
+  downloadFormat: 'mp4',
+  setDownloadFormat: (format) => set({ downloadFormat: format }),
+  // swaps the courtesy pauses between downloads for a short one.
+  fastDownloadPacing: localStorage.getItem('fastDownloadPacing') === 'true',
+  setFastDownloadPacing: (val) => {
+    localStorage.setItem('fastDownloadPacing', String(val));
+    return set({ fastDownloadPacing: val });
+  },
+  // stays on until the user leaves the downloader, once a link has been typed.
+  linkControlsRevealed: false,
+  setLinkControlsRevealed: (val) => set({ linkControlsRevealed: val }),
+
   isDownloading: false,
   setIsDownloading: (val) => set({ isDownloading: val }),
   downloadCancelled: false,
@@ -142,6 +204,9 @@ const useAppStore = create((set) => ({
   // effects (starfield crossfade) don't react to a video src that hasn't loaded yet.
   backgroundVideoReady: false,
   setBackgroundVideoReady: (val) => set({ backgroundVideoReady: val }),
+  // true while the background video has faded out after a pause, so the starfield knows it's no longer showing.
+  backgroundVideoFaded: false,
+  setBackgroundVideoFaded: (val) => set({ backgroundVideoFaded: val }),
 
   // tracks the 5s no-activity idle state of the immersive player widget so other
   // immersive-mode visuals (starfield) can react without re-implementing the timer.
@@ -152,6 +217,10 @@ const useAppStore = create((set) => ({
   loadingText: 'Loading...',
   setLoading: (isLoading, text) =>
     set({ isLoading, loadingText: text || 'Loading...' }),
+
+  // how far along a playlist's video list is, while it loads.
+  playlistLoading: null,
+  setPlaylistLoading: (playlistLoading) => set({ playlistLoading }),
 
   musicFolder: null,
   musicFiles: [],
@@ -169,20 +238,17 @@ const useAppStore = create((set) => ({
   toggleMusicNormalize: () => set((s) => ({ musicNormalize: !s.musicNormalize })),
   musicFolderView: false,
   setMusicFolderView: (val) => set({ musicFolderView: val }),
-  savedFolders: JSON.parse(localStorage.getItem('savedMusicFolders') || '[]'),
-  addSavedFolder: (folder) =>
-    set((s) => {
-      if (s.savedFolders.includes(folder)) return s;
-      const updated = [...s.savedFolders, folder];
-      localStorage.setItem('savedMusicFolders', JSON.stringify(updated));
-      return { savedFolders: updated };
-    }),
-  removeSavedFolder: (folder) =>
-    set((s) => {
-      const updated = s.savedFolders.filter((f) => f !== folder);
-      localStorage.setItem('savedMusicFolders', JSON.stringify(updated));
-      return { savedFolders: updated };
-    }),
+  // folders keep the order they were arranged in.
+  // changes go through services/musicLibrary.js.
+  library: loadLibrary(),
+  setLibrary: (library) => {
+    localStorage.setItem('musicLibrary', JSON.stringify(library));
+    return set({ library });
+  },
+  // folder paths in the temporary mixtape, which lasts until the app closes.
+  tempMixtape: [],
+  setTempMixtape: (tempMixtape) => set({ tempMixtape }),
+  // a folder path, or a mixtape as "mixtape:<id>".
   setMusicFolder: (folder) => set({ musicFolder: folder }),
   setMusicFiles: (files) =>
     set((s) => {
@@ -338,6 +404,18 @@ const useAppStore = create((set) => ({
     localStorage.setItem('behaviorHideVisualizer', String(val));
     return set({ behaviorHideVisualizer: val });
   },
+  // how the visualizer reads the music: modern, or legacy for the original look.
+  visualizerStyle: localStorage.getItem('visualizerStyle') || 'modern',
+  setVisualizerStyle: (val) => {
+    localStorage.setItem('visualizerStyle', val);
+    return set({ visualizerStyle: val });
+  },
+  // how many bars the visualizer draws: standard, high or ultra.
+  visualizerDetail: localStorage.getItem('visualizerDetail') || 'standard',
+  setVisualizerDetail: (val) => {
+    localStorage.setItem('visualizerDetail', val);
+    return set({ visualizerDetail: val });
+  },
 
   acceptMp3: localStorage.getItem('acceptMp3') !== 'false',
   setAcceptMp3: (val) => { localStorage.setItem('acceptMp3', String(val)); return set({ acceptMp3: val }); },
@@ -361,7 +439,7 @@ const useAppStore = create((set) => ({
 
   // optional touch bar items, all on by default.
   touchBarPrefs: (() => {
-    const defaults = { trackTitle: true, volume: true, shuffleRepeat: true, formatSwitch: true, downloadStatus: true, musicEverywhere: true };
+    const defaults = { trackTitle: true, volume: true, shuffleRepeat: true, formatSwitch: true, downloadStatus: true, musicEverywhere: true, controlStrip: true };
     try {
       return { ...defaults, ...JSON.parse(localStorage.getItem('touchBarPrefs') || '{}') };
     } catch {
@@ -381,32 +459,16 @@ const useAppStore = create((set) => ({
   toggleDebugConsole: () => set((s) => ({ debugConsoleOpen: !s.debugConsoleOpen })),
 
   renderProfile: localStorage.getItem('renderProfile') || 'standard',
-  setRenderProfile: (profile, { automatic = false } = {}) =>
+  setRenderProfile: (profile) =>
     set((s) => {
       localStorage.setItem('renderProfile', profile);
       const updates = { renderProfile: profile };
 
-      // First-time Lite Mode defaults avoid expensive effects. Hardware detection
-      // deliberately leaves the visualizer alone; that 60 fps loop is only opted
-      // out of when the user explicitly chooses Lite Mode.
-      const untouched = !s.liteDisableBlur && !s.liteDisableAnimations &&
-        !s.liteDisableVisualizer && !s.liteDisableVideoBackground;
-      if (profile === 'lite' && untouched) {
-        const defaults = ['liteDisableBlur', 'liteDisableAnimations', 'liteDisableVideoBackground'];
-        if (!automatic) defaults.push('liteDisableVisualizer');
-        defaults
-          .forEach((key) => localStorage.setItem(key, 'true'));
-        Object.assign(updates, {
-          liteDisableBlur: true,
-          liteDisableAnimations: true,
-          liteDisableVideoBackground: true,
-          ...(automatic ? {} : { liteDisableVisualizer: true }),
-        });
-      } else if (profile === 'lite' && !automatic && !s.liteDisableVisualizer) {
-        // An explicit Lite Mode selection always includes the visualizer toggle,
-        // even when the other Lite defaults were already applied automatically.
-        localStorage.setItem('liteDisableVisualizer', 'true');
-        updates.liteDisableVisualizer = true;
+      // switching to lite, by hand or by hardware detection, always starts from its defaults.
+      // the other effects stay on unless turned off within lite.
+      if (profile === 'lite' && s.renderProfile !== 'lite') {
+        saveLiteDefaults();
+        Object.assign(updates, LITE_DEFAULTS);
       }
 
       return updates;

@@ -89,7 +89,7 @@ const DOWNLOAD_TOPICS = [
       title: 'Downloading Basics',
       body: (
         <>
-          <p>Type a <strong>search term</strong> into the input bar to find content, or paste a <strong>direct link</strong> to add it straight to your queue.</p>
+          <p>Type a <strong>search term</strong> and press Enter to open search. Switch between the <strong>General</strong>, <strong>Music</strong> and <strong>Playlists</strong> tabs, tick everything you want, then add it all to your queue at once. Or paste a <strong>direct link</strong> to add it straight to your queue.</p>
           <p>Downstream also supports <strong>public playlists</strong>, <strong>unlisted playlists & videos</strong>, and <strong>radio mixes</strong> -- paste the link and you'll be prompted to select which items to add.</p>
           <p>Each item is added to the queue individually, so you can review and adjust before downloading.</p>
         </>
@@ -194,13 +194,16 @@ const PLAYER_TOPICS = [
       title: 'Library & Folders',
       body: (
         <>
-          <p>Your library is <strong>folder-based</strong> -- each folder you add becomes a switchable playlist.</p>
+          <p>Your library is <strong>folder-based</strong>: each folder you add becomes a switchable playlist.</p>
           <ul>
-            <li><strong>Add folders</strong> from the folder select screen</li>
-            <li><strong>Switch</strong> between saved folders at any time via the folder chip</li>
-            <li><strong>Remove</strong> folders you no longer need with the X button</li>
+            <li><strong>Add folders</strong> from the folder screen, several at once</li>
+            <li><strong>Mixtapes</strong> play several folders as one library, and have their own tab. Hold a dragged folder over the Mixtapes tab to open it, then drop it on a mixtape, or on New mixtape to start one</li>
+            <li><strong>The temporary mixtape</strong> is for a quick mix. It's gone when you close Downstream, unless you press Save</li>
+            <li><strong>Make it yours</strong> from a folder's menu or a right-click: pin it to the top, or give it a color instead of its album art</li>
+            <li><strong>Renaming</strong> a folder renames it on your computer too, and keeps its normalization measurements</li>
+            <li><strong>Switch</strong> at any time with the folder chip in the player</li>
           </ul>
-          <div className="guide-callout">Saved folders persist between sessions, so your library is always ready.</div>
+          <div className="guide-callout">Your folders and mixtapes are saved between sessions. Removing a folder only takes it out of Downstream, never off your computer.</div>
         </>
       ),
     },

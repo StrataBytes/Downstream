@@ -110,6 +110,60 @@
   gap: 12px;
 }
 
+/* same look as the home screen's prompt and option icons. */
+.input-bar-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  color: rgba(255,255,255,0.35);
+}
+.input-bar-intro span {
+  font-size: 0.95em;
+  color: rgba(255,255,255,0.45);
+}
+
+.url-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.url-field .url-input {
+  padding: 14px 54px 14px 18px;
+  border-radius: 12px;
+  font-size: 1.02em;
+}
+
+.url-submit {
+  position: absolute;
+  right: 7px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 9px;
+  background: #4cd0c1;
+  color: #0f1923;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s, transform 0.15s;
+}
+.url-submit:hover { background: #6fe0d3; }
+.url-submit:active { transform: scale(0.94); }
+.url-submit:disabled {
+  opacity: 0.25;
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+  cursor: default;
+  transform: none;
+}
+
+.input-controls-reveal {
+  animation: behaviorSlideUp 0.2s ease;
+}
+
 /* inline validation message for rejected links (typos, malformed urls) */
 .input-bar-error {
   display: flex;
@@ -153,7 +207,8 @@
   gap: 8px;
 }
 
-.input-controls select {
+.input-controls select,
+.search-footer-options select {
   flex: 1;
   padding: 10px 12px;
   border: 1px solid rgba(76,208,193,0.25);
@@ -165,7 +220,8 @@
   outline: none;
   transition: border-color 0.2s;
 }
-.input-controls select:hover { border-color: #4cd0c1; }
+.input-controls select:hover,
+.search-footer-options select:hover { border-color: #4cd0c1; }
 
 .now-playing {
   width: 100%;
@@ -223,4 +279,10 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.now-playing-progress .progress-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

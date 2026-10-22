@@ -83,6 +83,11 @@ export function validateMediaLink(raw) {
   return { ok: true, url: url.toString() };
 }
 
+// whether typed text is meant as a link rather than a search.
+export function looksLikeUrl(text) {
+  return /^https?:\/\//i.test(text) || /^(www\.)/i.test(text);
+}
+
 // canonicalizes a single-video youtube link to its minimal watch url, so the same video pasted different ways (youtu.be share links with ?si= tracking, &t= timestamps, shorts/live paths, music.youtube.com) dedupes to one queue entry.
 // playlist links (with ?list=) and non-youtube urls pass through untouched, only call this on links already bound for a single-video add.
 export function canonicalVideoUrl(urlStr) {

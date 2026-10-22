@@ -352,6 +352,14 @@
   border-radius: 0 10px 10px 0;
 }
 
+.behavior-subpanel-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.78em;
+  font-weight: 600;
+  color: rgba(255,255,255,0.8);
+}
+
 .behavior-subpanel-note {
   margin: 0;
   font-size: 0.7em;
@@ -359,8 +367,16 @@
   line-height: 1.5;
 }
 
-/* compact preset switcher (e.g. reactive's normal/aggressive/rigorous), pill labels only, with a single-line caption below for whichever one is selected.
-   keeps 3 options from turning into 3 stacked paragraphs. */
+/* a heads-up under a caption, like the cost of a heavier setting. */
+.behavior-subpanel-warning {
+  margin: 4px 0 0;
+  font-size: 0.7em;
+  color: rgba(255,180,60,0.75);
+  line-height: 1.5;
+}
+
+/* compact switcher for a few unordered options (e.g. the visualizer's modern/legacy), pill labels only, with a single-line caption below for whichever one is selected.
+   keeps a few options from turning into stacked paragraphs. */
 .behavior-pill-row {
   display: flex;
   gap: 6px;
@@ -391,6 +407,128 @@
   color: #4cd0c1;
 }
 .behavior-pill-active:hover {
+  color: #4cd0c1;
+}
+
+/* a group of its own inside a section (e.g. everything for the visualizer under visual effects), indented on an accent rail. */
+.behavior-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 4px 0 0 4px;
+  padding: 4px 0 4px 18px;
+  border-left: 2px solid rgba(76,208,193,0.25);
+}
+
+.behavior-subsection-title {
+  font-size: 0.8em;
+  font-weight: 600;
+  color: #4cd0c1;
+  letter-spacing: 0.02em;
+}
+
+.behavior-subsection-options {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: opacity 0.2s ease;
+}
+
+/* options for something that's switched off stay usable, but step back. */
+.behavior-subsection-dimmed {
+  opacity: 0.4;
+}
+
+/* ordered choices (e.g. visualizer detail, reactive aggressiveness) on a track that snaps to one notch per option.
+   the track is inset so the end labels can center under their notches. */
+.notched-slider {
+  padding: 0 30px;
+  margin-bottom: 8px;
+}
+
+.notched-slider-hit {
+  padding: 9px 0;
+  cursor: pointer;
+  outline: none;
+  touch-action: none;
+}
+
+.notched-slider-track {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.1);
+}
+
+.notched-slider-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 2px;
+  background: rgba(76,208,193,0.45);
+  transition: width 0.2s ease;
+}
+
+.notched-slider-notch {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: #2b3846;
+  transform: translate(-50%, -50%);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.notched-slider-notch-on {
+  border-color: #4cd0c1;
+  background: #4cd0c1;
+}
+
+.notched-slider-thumb {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(15,25,35,0.9);
+  background: #4cd0c1;
+  box-shadow: 0 0 6px rgba(76,208,193,0.4);
+  transform: translate(-50%, -50%);
+  transition: left 0.2s ease, box-shadow 0.15s;
+}
+.notched-slider-hit:hover .notched-slider-thumb,
+.notched-slider-hit:focus-visible .notched-slider-thumb {
+  box-shadow: 0 0 12px rgba(76,208,193,0.6);
+}
+
+.notched-slider-labels {
+  position: relative;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.notched-slider-label {
+  position: absolute;
+  top: 0;
+  padding: 2px 4px;
+  border: none;
+  background: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 0.72em;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transform: translateX(-50%);
+  transition: color 0.15s ease;
+}
+.notched-slider-label:hover {
+  color: rgba(255,255,255,0.75);
+}
+
+.notched-slider-label-active,
+.notched-slider-label-active:hover {
   color: #4cd0c1;
 }
 

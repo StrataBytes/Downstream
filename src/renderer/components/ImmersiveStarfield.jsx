@@ -1,15 +1,107 @@
 import { useEffect, useRef } from 'react';
 import useAppStore from '../stores/useAppStore';
+import { analyserGainDb } from './AudioEngine';
 
-// Perspective depth and capped impulses keep the field kinetic without hard jumps.
+// stars drift toward the camera, faster as the song gets more intense and slower as it calms down.
+// intensity is how loud and busy the song is against its own recent average, so it follows verses, choruses and drops rather than single drum hits.
 const DENSITY = 180;
-const REACTION = 0.85;
+const LITE_DENSITY = 130;
+// each tint's glow is drawn once at this size and stamped onto every star, which costs far less than a new gradient per star each frame.
+const GLOW_SPRITE = 64;
+// how fast the stars fly, in depth per second, with the song at its calmest, the extra once the player fades away, and the extra at its most intense.
+const CALM_SPEED = 0.065;
+const IDLE_SPEED = 0.03;
+const INTENSE_SPEED = 0.2;
+// new stars start somewhere in this depth range, so the field keeps as many bright nearby stars as when it first appears.
+const SPAWN_NEAR = 1.2;
+const SPAWN_FAR = 2.4;
+
+// the analyser's bytes span -100 to -30 db.
+const BYTE_DB = 70 / 255;
+// below this average level, in db above the analyser's floor, the song counts as silent and doesn't move the reading.
+const SILENCE_DB = 3;
+// how much busyness, the spectrum rising above where it just was, counts alongside loudness.
+const BUSY_WEIGHT = 2;
+const BUSY_TAU = 0.15;
+// the song's level rises over about this many seconds and falls over this many.
+const RISE_TAU = 1.5;
+const FALL_TAU = 3;
+// the song's recent average settles over its first few seconds, then follows it this slowly.
+const SETTLE = 4;
+const REFERENCE_TAU = 40;
+// this far above or below the recent average, in db, reads as fully intense or fully calm.
+const INTENSITY_RANGE_DB = 16;
+// the stars ease into a new speed over about this many seconds.
+const DRIVE_TAU = 2;
+
+const ease = (dt, tau) => 1 - Math.exp(-dt / tau);
+
+function drawGlow(color) {
+  const sprite = document.createElement('canvas');
+  sprite.width = GLOW_SPRITE;
+  sprite.height = GLOW_SPRITE;
+  const g = sprite.getContext('2d');
+  const r = GLOW_SPRITE / 2;
+  const gradient = g.createRadialGradient(r, r, 0, r, r, r);
+  gradient.addColorStop(0, `rgba(${color},0.3)`);
+  gradient.addColorStop(0.25, `rgba(${color},0.09)`);
+  gradient.addColorStop(1, `rgba(${color},0)`);
+  g.fillStyle = gradient;
+  g.fillRect(0, 0, GLOW_SPRITE, GLOW_SPRITE);
+  return sprite;
+}
+
+// how intense the song is right now, from 0 (calm) to 1 (most intense), against its own recent average.
+// the player's volume and normalization are taken back out first, so neither changes how the song reads.
+function createIntensityReader(analyser) {
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  const recent = new Float32Array(data.length);
+  const binHz = analyser.context.sampleRate / analyser.fftSize;
+  const low = Math.max(1, Math.floor(45 / binHz));
+  const high = Math.min(data.length - 1, Math.ceil(9000 / binHz));
+  const count = high - low + 1;
+  let level = null;
+  let reference = 0;
+  let heard = 0;
+  let intensity = 0.5;
+
+  return {
+    // a new song is read fresh.
+    reset() {
+      level = null;
+      heard = 0;
+    },
+    read(dt) {
+      analyser.getByteFrequencyData(data);
+      if (level === null) for (let i = low; i <= high; i++) recent[i] = data[i] * BYTE_DB;
+      let sum = 0;
+      let busy = 0;
+      for (let i = low; i <= high; i++) {
+        const db = data[i] * BYTE_DB;
+        sum += db;
+        busy += Math.max(0, db - recent[i]);
+        recent[i] += (db - recent[i]) * ease(dt, BUSY_TAU);
+      }
+      if (sum / count <= SILENCE_DB) return intensity;
+      const now = sum / count - analyserGainDb() + BUSY_WEIGHT * (busy / count);
+      heard += dt;
+      if (level === null) {
+        level = now;
+        reference = now;
+      }
+      level += (now - level) * ease(dt, now > level ? RISE_TAU : FALL_TAU);
+      reference = heard < SETTLE ? level : reference + (level - reference) * ease(dt, Math.min(REFERENCE_TAU, heard));
+      intensity = Math.min(1, Math.max(0, 0.5 + (level - reference) / INTENSITY_RANGE_DB));
+      return intensity;
+    },
+  };
+}
 
 function StarfieldCanvas() {
   const canvasRef = useRef(null);
   const analyser = useAppStore((s) => s.musicAnalyser);
   const lite = useAppStore((s) => s.renderProfile === 'lite');
-  const videoVisible = useAppStore((s) => s.backgroundVideoReady && !!s.backgroundVideo && !(s.renderProfile === 'lite' && s.liteDisableVideoBackground));
+  const videoVisible = useAppStore((s) => s.backgroundVideoReady && !s.backgroundVideoFaded && !!s.backgroundVideo && !(s.renderProfile === 'lite' && s.liteDisableVideoBackground));
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -17,25 +109,18 @@ function StarfieldCanvas() {
     if (!ctx) return;
     let width = 1;
     let height = 1;
+    let dpr = 1;
     let frame;
     let last = 0;
     let elapsed = 0;
-    let impulse = 0;
-    let response = 0;
-    let baseline = 0.015;
-    let peakFlux = 0.02;
-    let lastBeat = -1;
-    let warmed = false;
     let trackPath;
+    let drive = 0.5;
     let idleFactor = 0;
     let playFactor = 1;
-    const data = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
-    const previous = data ? new Float32Array(data.length) : null;
-    const binHz = analyser ? analyser.context.sampleRate / analyser.fftSize : 1;
-    const low = Math.max(1, Math.floor(45 / binHz));
-    const high = data ? Math.min(data.length - 1, Math.ceil(9000 / binHz)) : 0;
+    const intensity = analyser ? createIntensityReader(analyser) : null;
+    const glows = {};
     const makeStar = (initial = false) => {
-      const z = initial ? 0.4 + Math.random() * 2 : 2.4;
+      const z = initial ? 0.4 + Math.random() * 2 : SPAWN_NEAR + Math.random() * (SPAWN_FAR - SPAWN_NEAR);
       const tint = Math.random();
       const size = Math.random();
       const prominent = size > 0.9;
@@ -53,12 +138,12 @@ function StarfieldCanvas() {
           : 0.25 + Math.random() * 0.25,
       };
     };
-    const stars = Array.from({ length: lite ? 90 : DENSITY }, () => makeStar(true));
+    const stars = Array.from({ length: lite ? LITE_DENSITY : DENSITY }, () => makeStar(true));
 
     const resize = () => {
       width = window.innerWidth;
       height = window.innerHeight;
-      const dpr = Math.min(window.devicePixelRatio || 1, lite ? 1 : 2);
+      dpr = Math.min(window.devicePixelRatio || 1, lite ? 1 : 2);
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -73,45 +158,13 @@ function StarfieldCanvas() {
       const state = useAppStore.getState();
       if (trackPath !== state.musicCurrent?.path) {
         trackPath = state.musicCurrent?.path;
-        warmed = false;
-        baseline = 0.015;
-        peakFlux = 0.02;
-        impulse = 0;
-        lastBeat = -1;
+        intensity?.reset();
       }
-      if (data && state.musicPlaying) {
-        analyser.getByteFrequencyData(data);
-        let flux = 0;
-        let energy = 0;
-        let weights = 0;
-        for (let i = low; i <= high; i++) {
-          const value = data[i] / 255;
-          const weight = i * binHz < 250 ? 4 : 1;
-          flux += Math.max(0, value - previous[i]) * weight;
-          energy += value * weight;
-          weights += weight;
-          previous[i] = value;
-        }
-        const count = Math.max(1, weights);
-        flux /= count;
-        energy /= count;
-        peakFlux = Math.max(flux, peakFlux * Math.exp(-dt / 4));
-        const threshold = Math.max(0.006, baseline * 1.8, peakFlux * 0.3);
-        if (warmed && energy > 0.02 && flux > threshold && elapsed - lastBeat > 0.22) {
-          impulse = Math.min(1, impulse + Math.min(0.6, flux / threshold * 0.2));
-          lastBeat = elapsed;
-        }
-        baseline += (flux - baseline) * (1 - Math.exp(-dt / 0.8));
-        warmed = true;
-      } else {
-        warmed = false;
-      }
-      impulse *= Math.exp(-dt / 1.2);
-      response += (impulse - response) * (1 - Math.exp(-dt / 0.22));
-      idleFactor += ((state.immersiveIdle ? 1 : 0) - idleFactor) * (1 - Math.exp(-dt / 3));
-      playFactor += ((state.musicPlaying ? 1 : 0.1) - playFactor) * (1 - Math.exp(-dt / 1.4));
+      if (intensity && state.musicPlaying) drive += (intensity.read(dt) - drive) * ease(dt, DRIVE_TAU);
+      idleFactor += ((state.immersiveIdle ? 1 : 0) - idleFactor) * ease(dt, 3);
+      playFactor += ((state.musicPlaying ? 1 : 0.1) - playFactor) * ease(dt, 1.4);
       ctx.clearRect(0, 0, width, height);
-      const speed = (0.065 + idleFactor * 0.03 + response * REACTION * 0.32) * playFactor;
+      const speed = (CALM_SPEED + idleFactor * IDLE_SPEED + drive * INTENSE_SPEED) * playFactor;
       const centerX = width * (0.5 + Math.sin(elapsed * 0.09) * 0.018);
       const centerY = height * (0.5 + Math.cos(elapsed * 0.07) * 0.014);
       for (const star of stars) {
@@ -138,16 +191,12 @@ function StarfieldCanvas() {
         );
         const twinkleDepth = star.twinkleDepth * (1 + idleFactor * 0.4);
         const twinkle = 1 - twinkleDepth + twinkleDepth * shimmer;
-        const alpha = Math.min(0.85, 0.22 + near * 0.38 + response * REACTION * 0.22) * edge * arrival * twinkle * cameraFade;
+        const alpha = Math.min(0.85, 0.37 + near * 0.38) * edge * arrival * twinkle * cameraFade;
         const glowRadius = radius * 4;
-        const glow = ctx.createRadialGradient(x, y, 0, x, y, glowRadius);
-        glow.addColorStop(0, `rgba(${star.color},${alpha * 0.3})`);
-        glow.addColorStop(0.25, `rgba(${star.color},${alpha * 0.09})`);
-        glow.addColorStop(1, `rgba(${star.color},0)`);
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
-        ctx.fill();
+        glows[star.color] ||= drawGlow(star.color);
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(glows[star.color], x - glowRadius, y - glowRadius, glowRadius * 2, glowRadius * 2);
+        ctx.globalAlpha = 1;
         const distance = Math.hypot(x - centerX, y - centerY) || 1;
         const trailDepth = Math.max(0, Math.min(1, (1.1 - star.z) / 0.6));
         const trail = Math.min(10, distance * speed / star.z * 0.065) * trailDepth;
@@ -174,7 +223,8 @@ function StarfieldCanvas() {
         }
         ctx.fillStyle = `rgba(255,255,255,${Math.min(1, alpha * 1.2)})`;
         ctx.beginPath();
-        ctx.arc(x, y, Math.max(0.35, radius * 0.42), 0, Math.PI * 2);
+        // a core is never smaller than a pixel, so stars drawn at 1x stay as crisp as at 2x.
+        ctx.arc(x, y, Math.max(0.7 / dpr, radius * 0.42), 0, Math.PI * 2);
         ctx.fill();
 
       }
@@ -182,7 +232,6 @@ function StarfieldCanvas() {
     const restart = () => {
       cancelAnimationFrame(frame);
       last = 0;
-      warmed = false;
       if (!document.hidden) frame = requestAnimationFrame(draw);
     };
     const onResize = () => { resize(); restart(); };
@@ -201,6 +250,6 @@ function StarfieldCanvas() {
 }
 
 export default function ImmersiveStarfield() {
-  const active = useAppStore((s) => s.currentView === 'player' && s.playerViewMode === 'immersive' && !!s.musicCurrent && !s.musicFolderView);
+  const active = useAppStore((s) => s.currentView === 'player' && s.playerViewMode === 'immersive' && !!s.musicCurrent && !s.folderScreen);
   return active ? <StarfieldCanvas /> : null;
 }

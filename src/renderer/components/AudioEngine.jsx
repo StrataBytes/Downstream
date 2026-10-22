@@ -37,6 +37,13 @@ function applyVolumeCurve(linear) {
   return linear * linear;
 }
 
+// how far the volume and normalization turn the music up or down before the analyser hears it, in db, so the starfield can read the song itself.
+export function analyserGainDb() {
+  if (!sourceNode || !normGainNode) return 0;
+  const gain = sourceNode.mediaElement.volume * normGainNode.gain.value;
+  return gain > 0 ? 20 * Math.log10(gain) : 0;
+}
+
 function buildAudioGraph(audio) {
   if (sourceNode || graphDead || !audio) return;
   try {
@@ -169,6 +176,20 @@ export default function AudioEngine() {
       clearInterval(fadeTimerRef.current);
       return;
     }
+    // the folder was renamed under the playing track, so it picks up from the same spot at the new path.
+    if (musicCurrent.movedFrom && musicCurrent.movedFrom === currentPathRef.current) {
+      const at = audio.currentTime;
+      const wasPlaying = !audio.paused;
+      currentPathRef.current = musicCurrent.path;
+      audio.src = toMediaUrl(musicCurrent.path);
+      audio.addEventListener('loadedmetadata', () => {
+        audio.currentTime = at;
+        if (wasPlaying) audio.play().catch(() => {});
+      }, { once: true });
+      dbg('player', `"${musicCurrent.name}" moved with its folder, resuming at ${at.toFixed(1)}s`);
+      return;
+    }
+
     const samePath = currentPathRef.current === musicCurrent.path;
     currentPathRef.current = musicCurrent.path;
 

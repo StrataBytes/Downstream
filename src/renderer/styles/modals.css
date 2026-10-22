@@ -109,7 +109,10 @@
 .playlist-items::-webkit-scrollbar-track { background: transparent; }
 .playlist-items::-webkit-scrollbar-thumb { background: rgba(76,208,193,0.3); border-radius: 3px; }
 
+/* rows off screen skip rendering, so playlists with thousands of videos stay quick. */
 .playlist-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 40px;
   display: flex;
   align-items: center;
   padding: 10px;
@@ -119,6 +122,14 @@
   transition: background 0.15s;
 }
 .playlist-item:hover { background: rgba(76,208,193,0.08); }
+
+.playlist-pacing-note {
+  flex-shrink: 0;
+  font-size: 0.72em;
+  line-height: 1.4;
+  color: rgba(255,255,255,0.4);
+  text-align: center;
+}
 .playlist-item input[type="checkbox"] {
   margin-right: 10px;
   width: 16px;

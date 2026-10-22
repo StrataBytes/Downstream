@@ -3,6 +3,8 @@
 // while off, the console wrappers just call through to the real console (one boolean check of overhead), nothing is buffered, no subscribers are notified, and the main process is told not to forward its logs over ipc.
 // opening the pane flips capture on, closing it flips capture off and frees the buffer.
 
+import useAppStore from '../stores/useAppStore';
+
 const MAX_ENTRIES = 800;
 const buffer = [];
 const subscribers = new Set();
@@ -41,6 +43,77 @@ export function dbg(scope, ...args) {
   pushLog('ui', level, `[${scope}] ${text}`);
 }
 
+// startup runs before the outlog can be opened, so its results are kept to show when it does.
+let startupSummary = null;
+
+export function noteStartup(summary) {
+  startupSummary = summary;
+}
+
+const itemCount = (list) => `${list.length} item(s)`;
+const quoted = (key) => (value) => (value ? `"${value[key]}"` : 'none');
+
+// store fields worth seeing change, and how each is shown.
+const WATCHED = {
+  currentView: String,
+  folderScreen: String,
+  optionsOpen: String,
+  isDownloading: String,
+  downloadCancelled: String,
+  queue: itemCount,
+  nowPlaying: quoted('title'),
+  downloadFolder: String,
+  downloadQuality: String,
+  downloadFormat: String,
+  fastDownloadPacing: String,
+  musicFolder: String,
+  musicCurrent: quoted('name'),
+  musicPlaying: String,
+  musicShuffle: String,
+  musicRepeat: String,
+  playerViewMode: String,
+  renderProfile: String,
+  liteDisableBlur: String,
+  liteDisableAnimations: String,
+  liteDisableVisualizer: String,
+  liteDisableVideoBackground: String,
+  ffmpegReady: String,
+  ytDlpReady: String,
+  networkConnected: String,
+};
+
+function describe(state) {
+  return Object.fromEntries(Object.entries(WATCHED).map(([key, show]) => [key, show(state[key])]));
+}
+
+let unwatch = null;
+
+// logs each watched field as it changes, only while capturing.
+function watchState() {
+  let last = describe(useAppStore.getState());
+  unwatch = useAppStore.subscribe((state) => {
+    const next = describe(state);
+    for (const key in next) {
+      if (next[key] !== last[key]) pushLog('ui', 'log', `[state] ${key}: ${last[key]} → ${next[key]}`);
+    }
+    last = next;
+  });
+}
+
+// where the app stands when capture starts.
+function logSnapshot() {
+  const s = useAppStore.getState();
+  const lite = Object.entries({ blur: 'Blur', animations: 'Animations', visualizer: 'Visualizer', 'video background': 'VideoBackground' })
+    .filter(([, key]) => s[`liteDisable${key}`])
+    .map(([label]) => label);
+  dbg('env', `window ${window.innerWidth}x${window.innerHeight} at ${window.devicePixelRatio}x, ${s.renderProfile} rendering${lite.length ? `, lite mode turned off ${lite.join(', ')}` : ''}`);
+  dbg('env', `view ${s.currentView}, queue ${s.queue.length}, history ${s.queueHistory.length}${s.isDownloading ? ', downloading now' : ''}`);
+  dbg('env', `downloads go to ${s.downloadFolder || 'the default folder'} as ${s.downloadFormat}/${s.downloadQuality}${s.fastDownloadPacing ? ', shorter pauses on' : ''}`);
+  dbg('env', `library ${s.library.folders.length} folder(s), ${s.library.mixtapes.length} mixtape(s), ${s.tempMixtape.length} folder(s) on the temporary one, playing from ${s.musicFolder || 'nothing'} (${s.musicFiles.length} track(s))${s.musicCurrent ? `, current "${s.musicCurrent.name}"` : ''}`);
+  dbg('env', `ffmpeg ready ${s.ffmpegReady}, yt-dlp ready ${s.ytDlpReady}, online ${s.networkConnected}`);
+  if (startupSummary) dbg('env', startupSummary);
+}
+
 // toggles capture, called by the debugconsole when it opens or closes.
 // turning off also frees the buffer and tells the main process to stop forwarding.
 export function setDebugCaptureEnabled(on) {
@@ -50,7 +123,11 @@ export function setDebugCaptureEnabled(on) {
   window.electronAPI?.setDebugCapture?.(on);
   if (on) {
     pushLog('ui', 'log', 'Capture started.');
+    logSnapshot();
+    watchState();
   } else {
+    unwatch?.();
+    unwatch = null;
     buffer.length = 0;
   }
 }

@@ -1,5 +1,15 @@
 {
   "Versions": {
+    "2.4.0": {
+      "IsTargetOutdated": false,
+      "OutdatedMessage": "",
+      "KnownIssues": [
+        "",
+        "",
+        ""
+      ],
+      "updateButtonUrl": "https://github.com/StrataBytes/Downstream/releases"
+    },
     "2.3.5": {
       "IsTargetOutdated": false,
       "OutdatedMessage": "",

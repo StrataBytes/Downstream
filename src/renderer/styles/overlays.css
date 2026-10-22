@@ -26,6 +26,101 @@
   font-weight: 600;
 }
 
+/* === shimmer progress bar === */
+/* a soft highlight drifts across the fill, so the bar reads as working while a step takes its time. */
+
+@keyframes shimmerSweep {
+  from { background-position: 150% 0; }
+  to   { background-position: -50% 0; }
+}
+
+.shimmer-bar {
+  width: 220px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.shimmer-bar-fill {
+  min-width: 6%;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(76, 208, 193, 0.7) 35%, #a5f3ea 50%, rgba(76, 208, 193, 0.7) 65%);
+  background-size: 250% 100%;
+  animation: shimmerSweep 1.8s ease-in-out infinite;
+  transition: width 0.35s ease;
+}
+
+/* with no total to measure against, the whole bar shimmers at half strength. */
+.shimmer-bar-fill-unknown {
+  opacity: 0.5;
+}
+
+/* === playlist loading === */
+
+.playlist-loading {
+  width: min(360px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  animation: fadeIn 0.25s ease;
+}
+
+.playlist-loading-label {
+  font-size: 0.72em;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.5px;
+}
+
+.playlist-loading-title {
+  max-width: 100%;
+  min-height: 1.3em;
+  font-size: 1em;
+  font-weight: 600;
+  color: #4cd0c1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playlist-loading .shimmer-bar {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.playlist-loading-status {
+  font-size: 0.8em;
+  color: rgba(255, 255, 255, 0.6);
+  font-variant-numeric: tabular-nums;
+}
+
+.playlist-loading-note {
+  max-width: 300px;
+  font-size: 0.7em;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.playlist-loading-cancel {
+  margin-top: 8px;
+  padding: 8px 26px;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+  font-size: 0.85em;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.playlist-loading-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e4e4e7;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

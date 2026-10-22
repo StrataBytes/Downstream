@@ -15,6 +15,7 @@ export default function BackgroundLayer() {
   const holdFrame = useAppStore((s) => s.behaviorHoldVideoFrame);
   const audioRef = useAppStore((s) => s.musicAudioRef);
   const setBackgroundVideoReady = useAppStore((s) => s.setBackgroundVideoReady);
+  const setBackgroundVideoFaded = useAppStore((s) => s.setBackgroundVideoFaded);
   const layerRef = useRef(null);
   const videoRef = useRef(null);
   const pauseFadeRef = useRef(null);
@@ -55,6 +56,7 @@ export default function BackgroundLayer() {
     const audio = audioRef?.current;
     if (!vid || !video) {
       setBackgroundVideoReady(false);
+      setBackgroundVideoFaded(false);
       return;
     }
     setBackgroundVideoReady(false);
@@ -76,6 +78,7 @@ export default function BackgroundLayer() {
 
     if (musicPlaying) {
       vid.classList.remove('background-video-faded');
+      setBackgroundVideoFaded(false);
       vid.playbackRate = 1;
 
       const audio = audioRef?.current;
@@ -110,6 +113,7 @@ export default function BackgroundLayer() {
           if (!holdFrame) {
             pauseFadeRef.current = setTimeout(() => {
               vid.classList.add('background-video-faded');
+              setBackgroundVideoFaded(true);
             }, 5000);
           }
         } else {

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import useAppStore from '../stores/useAppStore';
 import { downloadAll, requestCancelDownloads, chooseDownloadFolder } from '../services/downloadService';
 import { SHUFFLE_ICON, REPEAT_ICON } from '../utils/toggleIcons';
+import { dbg } from '../services/debugLog';
 
 // macos touch bar bridge.
 // sends what the bar shows and runs its button presses.
@@ -65,6 +66,7 @@ async function drawIcon(shapes) {
 function snapshot(s) {
   return {
     view: s.currentView,
+    starting: s.startupStep,
     optionsOpen: s.optionsOpen,
     prefs: s.touchBarPrefs,
     music: s.musicCurrent
@@ -89,9 +91,9 @@ function snapshot(s) {
 
 // same guards as the on-screen buttons.
 const ACTIONS = {
-  'go-home': (s) => { if (!s.isDownloading) s.setCurrentView('home'); },
-  'go-download': (s) => s.setCurrentView('download'),
-  'go-player': (s) => { if (!s.isDownloading) s.setCurrentView('player'); },
+  'go-home': (s) => { if (!s.isDownloading) s.goToView('home'); },
+  'go-download': (s) => s.goToView('download'),
+  'go-player': (s) => { if (!s.isDownloading) s.goToView('player'); },
   // also dismisses the auto lite mode notice, like the home options button.
   'open-options': (s) => { s.setOptionsOpen(true); s.setShowAutoLiteNotice(false); },
   'close-options': (s) => s.setOptionsOpen(false),
@@ -115,7 +117,15 @@ export function useTouchBar() {
     if (!actionsRegistered) {
       actionsRegistered = true;
       window.electronAPI.onTouchBarAction((action, value) => {
-        ACTIONS[action]?.(useAppStore.getState(), value);
+        const state = useAppStore.getState();
+        // nothing on the bar works until startup has finished.
+        if (state.startupStep) {
+          dbg('touchbar', `${action} ignored during startup`);
+          return;
+        }
+        // the volume slider sends a value for every step it moves.
+        if (action !== 'volume') dbg('touchbar', value === undefined ? action : `${action} ${value}`);
+        ACTIONS[action]?.(state, value);
       });
       // the toggles keep text labels if this fails.
       Promise.all([drawIcon(SHUFFLE_ICON), drawIcon(REPEAT_ICON)])

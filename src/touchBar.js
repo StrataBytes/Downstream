@@ -4,6 +4,7 @@
 // the renderer sends app state here, and button presses go back to it as actions.
 
 const { TouchBar, nativeImage, ipcMain } = require('electron');
+const { createControlStrip } = require('./controlStrip');
 
 const { TouchBarButton, TouchBarLabel, TouchBarPopover, TouchBarSlider, TouchBarSpacer, TouchBarSegmentedControl } = TouchBar;
 
@@ -100,6 +101,13 @@ function pressTransport(action) {
   skipGuard.pending = action;
   skipGuard.timer = setTimeout(flushSkip, SKIP_GUARD_MS);
 }
+
+// the player's bar in the control strip, for while another app is in front.
+// its presses go through the same paths as this bar's.
+const controlStrip = createControlStrip((action, value) => {
+  if (TRANSPORT_ACTIONS.has(action)) pressTransport(action);
+  else send(action, value);
+});
 
 function button({ label, action, icon, color }) {
   const img = icon && glyph(icon);
@@ -353,6 +361,8 @@ function playerItems({ music, prefs }) {
 function buildItems(state) {
   volumeSlider = null;
   stopMarquee();
+  // startup shows its progress with nothing to press.
+  if (state.starting) return [new TouchBarLabel({ label: `${state.starting}...` })];
   if (state.optionsOpen) return optionsItems(state);
   if (state.view === 'player') return playerItems(state);
   if (state.view === 'download') return downloadItems(state);
@@ -362,6 +372,7 @@ function buildItems(state) {
 function applyState(state) {
   if (!win || win.isDestroyed()) return;
   lastState = state;
+  controlStrip.update(state);
 
   // a volume-only change moves the slider instead of rebuilding mid-drag.
   const signature = JSON.stringify({ ...state, music: state.music && { ...state.music, volume: null } });
@@ -378,6 +389,8 @@ let listening = false;
 function attachTouchBar(window) {
   win = window;
   lastSignature = null;
+  // the music stops with the window, so its controls go too.
+  window.on('closed', () => controlStrip.hide());
   if (listening) return;
   listening = true;
   const fromWindow = (event) => win && !win.isDestroyed() && event.sender === win.webContents;
@@ -399,6 +412,7 @@ function attachTouchBar(window) {
   ipcMain.on('touchbar-icons', (event, { shuffle, repeat }) => {
     if (!fromWindow(event)) return;
     toggleIcons = { shuffle: templateImage(shuffle), repeat: templateImage(repeat) };
+    controlStrip.setIcons({ shuffle, repeat });
     if (lastState) {
       lastSignature = null;
       applyState(lastState);

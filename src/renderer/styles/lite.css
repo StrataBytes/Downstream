@@ -84,11 +84,6 @@ body.lite-no-blur .loading-overlay {
   background: rgba(0, 0, 0, 0.9);
 }
 
-body.lite-no-blur .search-results {
-  backdrop-filter: none;
-  background: rgba(15, 25, 35, 0.95);
-}
-
 body.lite-no-blur .queue-ctx-menu {
   backdrop-filter: none;
   background: rgba(18, 18, 24, 0.98);
@@ -115,18 +110,34 @@ body.lite-no-anim *::after {
   transition-duration: 0.05s !important;
 }
 
-body.lite-no-anim .intro-phrase {
-  animation-duration: 2.2s !important;
-}
-
-body.lite-no-anim .intro-spinner,
 body.lite-no-anim .loading-spinner {
   animation-duration: 0.75s !important;
 }
 
-/* marquee scrolling for overflowing titles (queue rows, mini-player, music player) is functional, not decorative.
+/* the shimmer on progress bars shows they're still working, so it keeps moving. */
+body.lite-no-anim .shimmer-bar-fill {
+  animation-duration: 1.8s !important;
+}
+
+/* the other always-running shimmers keep their pace too.
+   squeezed to near-instant they'd jump to a new spot every frame, strobing while still repainting just as often. */
+body.lite-no-anim .fill-finalizing,
+body.lite-no-anim .song-progress-fill.song-progress-buffering,
+body.lite-no-anim .song-progress-bar.song-progress-preparing::after {
+  animation-duration: 1.2s !important;
+}
+body.lite-no-anim .skeleton-loader {
+  animation-duration: 1.5s !important;
+}
+body.lite-no-anim .norm-scan-toast::after,
+body.lite-no-anim .norm-stats-box.norm-stats-scanning::after {
+  animation-duration: 3.2s !important;
+}
+
+/* marquee scrolling for overflowing titles (queue rows, mini-player, music player, the downloader's now playing) is functional, not decorative.
    long titles become unreadable without it, so it's exempt from the blanket animation kill above. */
-body.lite-no-anim .scrolling-text-inner {
+body.lite-no-anim .scrolling-text-inner,
+body.lite-no-anim .now-playing-title-scroll {
   animation-duration: var(--scroll-dur, 10s) !important;
 }
 body.lite-no-anim .scrolling-text-inner-ambient {
