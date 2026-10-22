@@ -36,6 +36,9 @@ module.exports = {
         identity: '-',
         identityValidation: false,
         optionsForFile: () => ({ hardenedRuntime: false }),
+        // the unpacked yt-dlp keeps the signature it ships with.
+        // its bundled python framework can't be re-signed ("bundle format is ambiguous"), which stops signing and leaves the whole app unsigned.
+        ignore: (file) => file.includes('/Contents/Resources/yt-dlp_macos/'),
       },
     } : {}),
     icon: process.platform === 'darwin'
