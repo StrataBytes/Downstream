@@ -314,7 +314,7 @@ export default function HomeView() {
           </div>
         </div>
       </div>
-      <span className="home-version" onClick={handleVersionTap}>v2.4.0</span>
+      <span className="home-version" onClick={handleVersionTap}>v2.4.1</span>
     </div>
   );
 }

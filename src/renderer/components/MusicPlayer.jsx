@@ -5,7 +5,8 @@ import ScrollingText from './ScrollingText';
 import { SHUFFLE_ICON, REPEAT_ICON } from '../utils/toggleIcons';
 
 export default function MusicPlayer() {
-  const musicFolder = useAppStore((s) => s.musicFolder);
+  // the folder or mixtape's name, which follows renames.
+  const sourceLabel = useAppStore((s) => sourceName(s.musicFolder, s));
   const musicFiles = useAppStore((s) => s.musicFiles);
   const musicCurrent = useAppStore((s) => s.musicCurrent);
   const musicPlaying = useAppStore((s) => s.musicPlaying);
@@ -28,7 +29,6 @@ export default function MusicPlayer() {
   const setBehaviorOpen = useAppStore((s) => s.setBehaviorOpen);
   const playerViewMode = useAppStore((s) => s.playerViewMode);
   const setMusicFolderView = useAppStore((s) => s.setMusicFolderView);
-  const library = useAppStore((s) => s.library);
   const folderScreen = useAppStore((s) => s.folderScreen);
   const loudnessScanningTrack = useAppStore((s) => s.loudnessScanningTrack);
   const setNormInfoOpen = useAppStore((s) => s.setNormInfoOpen);
@@ -121,7 +121,7 @@ export default function MusicPlayer() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
           </svg>
-          <span>{sourceName(musicFolder, library)}</span>
+          <span>{sourceLabel}</span>
         </button>
         <button type="button"
           className="music-folder-name"
