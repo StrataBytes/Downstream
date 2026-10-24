@@ -16,8 +16,8 @@ Head to the [latest release](https://github.com/StrataBytes/Downstream/releases/
 
 | Platform | File to download |
 |----------|-----------------|
-| **Windows** <sub>10 & 11</sub> | `Downstream-X.X.X.Setup`**.exe** |
-| **macOS** <sub>Catalina and above</sub> | `Downstream-X.X.X`**.dmg** |
+| **Windows** <sub>10 & 11</sub> | `WIN_Downstream-X.X.X.Setup`**.exe** |
+| **macOS** <sub>Catalina and above</sub> | `MAC_Downstream-X.X.X`**.dmg** |
 | **Legacy macOS** <sub>High Sierra & Mojave</sub> | `MAC-Legacy_Downstream-X.X.X`**.dmg** |
 
 
