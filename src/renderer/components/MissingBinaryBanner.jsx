@@ -2,6 +2,7 @@ import { useState } from 'react';
 import useAppStore from '../stores/useAppStore';
 
 // shown when yt-dlp and/or ffmpeg aren't on disk and downstream's own automatic recovery failed too, most commonly because windows defender/smartscreen removed or blocked one of them and the retry's network access failed as well.
+// on macos it's shown when one of them won't run.
 // lets the user retry the same recovery on demand instead of silently having a broken downloader.
 export default function MissingBinaryBanner() {
   const ffmpegReady = useAppStore((s) => s.ffmpegReady);
@@ -39,10 +40,17 @@ export default function MissingBinaryBanner() {
           <line x1="12" y1="8" x2="12" y2="12" />
           <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
-        <span className="update-banner-text">
-          Windows blocked or removed <strong>{missingName}</strong>, and Downstream couldn't restore {ffmpegMissing && ytDlpMissing ? 'them' : 'it'} automatically.
-          Downloads won't work until this is fixed! Check Windows Security &gt; Protection history to restore the file, then retry below.
-        </span>
+        {window.electronAPI.platform === 'win32' ? (
+          <span className="update-banner-text">
+            Windows blocked or removed <strong>{missingName}</strong>, and Downstream couldn't restore {ffmpegMissing && ytDlpMissing ? 'them' : 'it'} automatically.
+            Downloads won't work until this is fixed! Check Windows Security &gt; Protection history to restore the file, then retry below.
+          </span>
+        ) : (
+          <span className="update-banner-text">
+            Downstream couldn't run <strong>{missingName}</strong>, so downloads won't work right now.
+            Retry below, or reinstall Downstream if this keeps happening.
+          </span>
+        )}
       </div>
       <div className="update-banner-actions">
         <button className="update-banner-btn update-banner-btn-update" onClick={handleRetry} disabled={retrying}>

@@ -16,8 +16,9 @@ Head to the [latest release](https://github.com/StrataBytes/Downstream/releases/
 
 | Platform | File to download |
 |----------|-----------------|
-| **Windows** | `Downstream-X.X.X Setup`**.exe** |
-| **macOS** | `Downstream-X.X.X`**.dmg** |
+| **Windows** <sub>10 & 11</sub> | `Downstream-X.X.X.Setup`**.exe** |
+| **macOS** <sub>Catalina and above</sub> | `Downstream-X.X.X`**.dmg** |
+| **Legacy macOS** <sub>High Sierra & Mojave</sub> | `MAC-Legacy_Downstream-X.X.X`**.dmg** |
 
 
 ## Features
@@ -35,6 +36,7 @@ Head to the [latest release](https://github.com/StrataBytes/Downstream/releases/
 ### OS Compatibility Note...
 - Windows 10 & 11 is Downstream's 'native' operating system. 
 - MacOS compatibility has been only tested and developed on what I have available, being Ventura. 
+- Older Macs on High Sierra or Mojave can grab Downstream for legacy macOS. It's the same Downstream, just built to run there, and it might trail the regular release by a version.
 - When Linux support is added, you can expect greater support, because linux tends to 'just be able to run things' across multiple distros.
 
 

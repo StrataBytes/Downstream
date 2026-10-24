@@ -290,6 +290,30 @@
   box-shadow: 0 0 12px rgba(76,208,193,0.6);
 }
 
+/* the older chromium in downstream for legacy macos can't stand a slider upright with writing-mode, so it's turned on its side instead.
+   it spans the track's full height, measured with container units. */
+body.legacy-macos .eq-slider-track {
+  container-type: size;
+}
+body.legacy-macos .eq-slider {
+  writing-mode: horizontal-tb;
+  direction: ltr;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100cqh;
+  height: 18px;
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+body.legacy-macos .eq-slider::-webkit-slider-runnable-track {
+  width: auto;
+  height: 3px;
+}
+body.legacy-macos .eq-slider::-webkit-slider-thumb {
+  margin-left: 0;
+  margin-top: -5px;
+}
+
 .eq-dot {
   display: none;
 }

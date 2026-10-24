@@ -14,6 +14,11 @@ const { downloadToFile } = require('./binaryRecovery');
 const ZIP_ASSET = 'yt-dlp_macos.zip';
 const SUMS_ASSET = 'SHA2-256SUMS';
 const EXE_NAME = 'yt-dlp_macos';
+// the official macos build needs 10.15, so the legacy build installs the platform-independent one instead.
+// a small launcher under the usual name runs it with downstream's bundled python, whose path main puts in DOWNSTREAM_PYTHON.
+const ZIPAPP_ASSET = 'yt-dlp';
+const ZIPAPP_NAME = 'yt-dlp.pyz';
+const LAUNCHER = '#!/bin/sh\nexec "${DOWNSTREAM_PYTHON:-python3}" "$(dirname "$0")/yt-dlp.pyz" "$@"\n';
 const TAG_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
 function fetchText(url, redirects = 5) {
@@ -60,22 +65,28 @@ function sha256(file) {
 }
 
 // downloads one release's build, checks it against the release checksums, and unpacks it into dir.
-async function installRelease(repo, tag, dir) {
+async function installRelease(repo, tag, dir, { legacy = false } = {}) {
+  const asset = legacy ? ZIPAPP_ASSET : ZIP_ASSET;
   const base = `https://github.com/${repo}/releases/download/${tag}`;
   const sums = await fetchText(`${base}/${SUMS_ASSET}`);
-  const line = sums.split('\n').find((l) => l.trim().endsWith(` ${ZIP_ASSET}`));
+  const line = sums.split('\n').find((l) => l.trim().endsWith(` ${asset}`));
   const expected = line && line.trim().split(/\s+/)[0];
-  if (!expected) throw new Error(`${SUMS_ASSET} for ${tag} has no ${ZIP_ASSET}.`);
+  if (!expected) throw new Error(`${SUMS_ASSET} for ${tag} has no ${asset}.`);
 
-  const zipPath = `${dir}.zip`;
-  await downloadToFile(`${base}/${ZIP_ASSET}`, zipPath);
+  const download = `${dir}.download`;
+  await downloadToFile(`${base}/${asset}`, download);
   try {
-    if (await sha256(zipPath) !== expected) throw new Error(`${ZIP_ASSET} for ${tag} failed its checksum.`);
+    if (await sha256(download) !== expected) throw new Error(`${asset} for ${tag} failed its checksum.`);
     fs.rmSync(dir, { recursive: true, force: true });
     fs.mkdirSync(dir, { recursive: true });
-    await run('ditto', ['-x', '-k', zipPath, dir], 120000);
+    if (legacy) {
+      fs.renameSync(download, path.join(dir, ZIPAPP_NAME));
+      fs.writeFileSync(path.join(dir, EXE_NAME), LAUNCHER);
+    } else {
+      await run('ditto', ['-x', '-k', download, dir], 120000);
+    }
   } finally {
-    fs.rmSync(zipPath, { force: true });
+    fs.rmSync(download, { force: true });
   }
 
   const exe = path.join(dir, EXE_NAME);
@@ -85,7 +96,7 @@ async function installRelease(repo, tag, dir) {
 
 // installed versions live in their own folders under root, with root/current naming the active one.
 // updating never touches the files of a version that may still be running.
-function createVersionStore({ root, bundledExe, repos, defaultTarget }) {
+function createVersionStore({ root, bundledExe, repos, defaultTarget, legacy = false }) {
   const currentFile = path.join(root, 'current');
   const exeFor = (tag) => path.join(root, tag, EXE_NAME);
   let queue = Promise.resolve();
@@ -129,7 +140,7 @@ function createVersionStore({ root, bundledExe, repos, defaultTarget }) {
     if (tag === current() && fs.existsSync(exeFor(tag))) return exeFor(tag);
 
     fs.mkdirSync(root, { recursive: true });
-    const exe = await installRelease(repo, tag, path.join(root, tag));
+    const exe = await installRelease(repo, tag, path.join(root, tag), { legacy });
     // macos scans new files on their first run, so that happens here instead of during a download.
     await run(exe, ['--version'], 180000);
     fs.writeFileSync(currentFile, tag);

@@ -6,6 +6,7 @@ yarn-error.log*
 
 # Build outputs
 out/
+out-legacy/
 dist/
 build/
 .vite/

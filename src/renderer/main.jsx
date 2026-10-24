@@ -10,6 +10,8 @@ initDebugLog();
 // background loudness scanning for contextual normalization, self-gating.
 // idle unless the user has contextual selected with normalization on.
 initLoudnessService();
+// lets styles adjust to the older chromium in downstream for legacy macos.
+if (__DOWNSTREAM_LEGACY__) document.body.classList.add('legacy-macos');
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

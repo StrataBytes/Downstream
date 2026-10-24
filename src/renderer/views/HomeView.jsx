@@ -314,7 +314,13 @@ export default function HomeView() {
           </div>
         </div>
       </div>
-      <span className="home-version" onClick={handleVersionTap}>v2.4.1</span>
+      <span
+        className="home-version"
+        onClick={handleVersionTap}
+        title={__DOWNSTREAM_LEGACY__ ? 'Downstream built for macOS 10.13 and 10.14. Downstream for newer macOS can be a version ahead.' : undefined}
+      >
+        v{__APP_VERSION__}{__DOWNSTREAM_LEGACY__ && ' for legacy macOS'}
+      </span>
     </div>
   );
 }

@@ -5,6 +5,10 @@ const path = require('path');
 const fs = require('fs');
 const { buildControlStrip } = require('./scripts/buildControlStrip');
 
+// downstream for legacy macos, the same app built to run on macos 10.13 and 10.14 (see duild-legacy.sh).
+// it brings its own python and runs yt-dlp's platform-independent build, prepared in build/legacy by scripts/prepareLegacy.js.
+const legacy = process.env.DOWNSTREAM_LEGACY === '1';
+
 function copyDirSync(src, dest, skip = () => false) {
   fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
@@ -20,6 +24,8 @@ function copyDirSync(src, dest, skip = () => false) {
 }
 
 module.exports = {
+  // the legacy build has its own folder, so building both keeps both.
+  outDir: legacy ? 'out-legacy' : 'out',
   packagerConfig: {
     asar: true,
     appBundleId: 'com.stratabytes.downstream',
@@ -48,7 +54,9 @@ module.exports = {
       ? [
           './node_modules/ffmpeg-static/ffmpeg',
           `./node_modules/ffprobe-static/bin/darwin/${process.arch}/ffprobe`,
-          './node_modules/yt-dlp-exec/bin/yt-dlp_macos',
+          ...(legacy
+            ? ['./build/legacy/yt-dlp_macos', './build/legacy/python']
+            : ['./node_modules/yt-dlp-exec/bin/yt-dlp_macos']),
         ]
       : [
           './node_modules/ffmpeg-static/ffmpeg.exe',
@@ -128,7 +136,7 @@ module.exports = {
     {
       name: '@electron-forge/maker-dmg',
       config: {
-        name: 'Downstream',
+        name: legacy ? 'Downstream for Legacy macOS' : 'Downstream',
         icon: 'assets/icons/mac/icon.icns',
         format: 'ULFO',
       },

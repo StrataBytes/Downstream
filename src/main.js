@@ -107,7 +107,13 @@ const darwin = {
     },
     getYtDlpPath() {
         if (app.isPackaged) return path.join(process.resourcesPath, 'yt-dlp_macos', 'yt-dlp_macos');
+        if (__DOWNSTREAM_LEGACY__) return path.join(__dirname, '..', '..', 'build', 'legacy', 'yt-dlp_macos', 'yt-dlp_macos');
         return path.join(__dirname, '..', '..', 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp_macos', 'yt-dlp_macos');
+    },
+    // the legacy build's own python, which runs yt-dlp there (see ytDlpMacos.js).
+    getPythonPath() {
+        if (app.isPackaged) return path.join(process.resourcesPath, 'python', 'bin', 'python3');
+        return path.join(__dirname, '..', '..', 'build', 'legacy', 'python', 'bin', 'python3');
     },
     getIconPath() {
         return path.join(__dirname, '..', '..', 'assets', 'icons', 'mac', 'icon.icns');
@@ -149,6 +155,8 @@ const ytdl = require('ytdl-core');
 const ffmpegPath = platform.getFFmpegPath();
 const ffmpegDir = platform.getFFmpegDir();
 const bundledYtDlpPath = platform.getYtDlpPath();
+// every yt-dlp the legacy build runs, bundled or updated, finds its python here.
+if (__DOWNSTREAM_LEGACY__) process.env.DOWNSTREAM_PYTHON = platform.getPythonPath();
 // The copy inside the application bundle is immutable on macOS and can be replaced by
 // an installer update on Windows. Keep the auto-updating copy in userData instead.
 // That lets yt-dlp repair YouTube extractor changes without modifying or invalidating
@@ -291,6 +299,7 @@ function initializeMacYtDlp() {
         bundledExe: bundledYtDlpPath,
         repos: YT_DLP_CHANNEL_REPOS,
         defaultTarget: YT_DLP_DEFAULT_TARGET,
+        legacy: __DOWNSTREAM_LEGACY__,
     });
     macYtDlp.prune();
     useYtDlp(macYtDlp.activeExe());
@@ -497,6 +506,14 @@ function createWindow() {
     });
 
     if (process.platform === 'darwin') {
+        // downstream for legacy macos says so in its about panel too.
+        if (__DOWNSTREAM_LEGACY__) {
+            app.setAboutPanelOptions({
+                applicationVersion: `${app.getVersion()} for legacy macOS`,
+                version: '',
+                credits: 'Built for macOS 10.13 and 10.14. Downstream for newer macOS can be a version ahead.',
+            });
+        }
         const template = [
             {
                 label: app.name,
@@ -684,6 +701,13 @@ function cleanYouTubeUrl(url) {
 function getFormatString(quality, format) {
     if (format === 'mp3') {
         return 'bestaudio/best';
+    }
+
+    // the legacy build favors h.264 with aac, which older macs play smoothly and quicktime opens.
+    // youtube's best 1080p is often av1, which keeps a core 2 duo busy on both cores and still drops frames.
+    if (__DOWNSTREAM_LEGACY__) {
+        const cap = { high: '[height<=1080]', medium: '[height<=720]', low: '[height<=480]' }[quality] || '';
+        return `bestvideo[vcodec^=avc]${cap}+bestaudio[ext=m4a]/bestvideo${cap}+bestaudio${cap ? `/best${cap}` : ''}/best`;
     }
 
     // no codec constraint, letting yt-dlp pick vp9/av1/h.264 freely and relying on ffmpeg (via mergeOutputFormat) to produce the mp4 container.
@@ -1573,7 +1597,9 @@ app.on('will-quit', () => {
 ipcMain.handle('check-version', async () => {
     try {
         const appVersion = app.getVersion();
-        const res = await net.fetch('https://raw.githubusercontent.com/StrataBytes/Downstream/refs/heads/main/versionctrl.json');
+        // the legacy build has its own list, since it's released on its own schedule.
+        const list = __DOWNSTREAM_LEGACY__ ? 'legacy-versionctrl.json' : 'versionctrl.json';
+        const res = await net.fetch(`https://raw.githubusercontent.com/StrataBytes/Downstream/refs/heads/main/${list}`);
         const data = await res.json();
         const entry = data.Versions?.[appVersion];
         console.log(`[update] ${appVersion} is ${!entry ? 'not in the version list' : entry.IsTargetOutdated ? 'outdated' : 'current'}`);

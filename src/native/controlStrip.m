@@ -225,8 +225,13 @@ static BOOL flag(id value) {
   _title = [TitleView new];
 
   _volume = [[NSSliderTouchBarItem alloc] initWithIdentifier:VOLUME];
-  _volume.maximumSliderWidth = VOLUME_WIDTH;
-  _volume.minimumSliderWidth = VOLUME_WIDTH;
+  if (@available(macOS 10.15, *)) {
+    _volume.maximumSliderWidth = VOLUME_WIDTH;
+    _volume.minimumSliderWidth = VOLUME_WIDTH;
+  } else {
+    // before catalina the slider's width comes from a constraint.
+    [_volume.slider.widthAnchor constraintEqualToConstant:VOLUME_WIDTH].active = YES;
+  }
   _volume.slider.minValue = 0;
   _volume.slider.maxValue = 100;
   _volume.slider.continuous = YES;
