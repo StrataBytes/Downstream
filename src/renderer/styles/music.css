@@ -91,6 +91,92 @@
   text-align: center;
 }
 
+/* what the measuring is doing, opened from its notice: the loudness picture over a few lines, how far along it is, and a way to the settings. */
+.norm-info {
+  width: min(520px, 92%);
+  overflow: hidden;
+  background: linear-gradient(135deg, #1a2634, #243040);
+  border: 1px solid rgba(76,208,193,0.3);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  animation: normInfoIn 0.25s ease;
+}
+@keyframes normInfoIn {
+  from { opacity: 0; transform: translateY(12px); }
+}
+.norm-info .sp-loudness {
+  border: none;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-radius: 0;
+}
+.norm-info-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px 22px;
+}
+.norm-info-title {
+  font-size: 1.1em;
+  font-weight: 700;
+  color: rgba(255,255,255,0.92);
+}
+.norm-info-text {
+  font-size: 0.8em;
+  line-height: 1.55;
+  color: rgba(255,255,255,0.55);
+}
+.norm-info-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+}
+.norm-info-progress-text {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.72em;
+  color: rgba(255,255,255,0.65);
+}
+.norm-info-now {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: rgba(76,208,193,0.75);
+}
+.norm-info-points {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.norm-info-points li {
+  position: relative;
+  padding-left: 14px;
+  font-size: 0.74em;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.45);
+}
+.norm-info-points li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(76,208,193,0.5);
+}
+.norm-info-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
 
 .music-player-extras {
   width: 100%;
@@ -366,7 +452,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: rgba(15,25,35,0.82);
+  background: rgba(15,25,35,var(--panel-alpha, 0.82));
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 16px;
   backdrop-filter: blur(12px);
@@ -565,4 +651,221 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* === the library, named for what's playing === */
+/* a little wider, with search always there, each song's length, and a footer for adding and moving media. */
+
+.music-library.music-library-next {
+  width: 340px;
+  padding: 18px 16px 0;
+  gap: 10px;
+}
+.music-library-next .music-library-header {
+  gap: 10px;
+}
+.music-library-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.music-library-title .folder-cover {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+}
+.music-library-title .folder-cover svg {
+  width: 15px;
+  height: 15px;
+}
+.music-library-next .music-library-header h2 {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.music-library-next .queue-header-right {
+  flex-shrink: 0;
+}
+.music-library-next .music-library-search-row {
+  padding: 4px 4px 4px 10px;
+  animation: none;
+}
+.music-library-next .music-library-sort-menu {
+  left: auto;
+  right: 0;
+}
+.music-library-sort-btn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.music-library-sort-btn:hover {
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+}
+.music-library-sort-btn-active {
+  background: rgba(76,208,193,0.12);
+  color: #4cd0c1;
+}
+
+.music-library-next .music-library-list {
+  gap: 2px;
+  margin-right: -4px;
+  border-radius: 10px;
+}
+.music-library-next .music-library-item {
+  position: relative;
+  padding: 8px 8px 8px 12px;
+  outline: none;
+  user-select: none;
+}
+.music-library-next .music-library-item:focus-visible {
+  border-color: rgba(76,208,193,0.35);
+}
+.music-library-length {
+  flex-shrink: 0;
+  font-size: 0.86em;
+  color: rgba(255,255,255,0.35);
+  font-variant-numeric: tabular-nums;
+}
+.music-library-item-active .music-library-length {
+  color: rgba(76,208,193,0.7);
+}
+
+/* the menu button takes the length's place while the pointer is on the row. */
+.music-library-more {
+  display: none;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin: -3px 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(255,255,255,0.55);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.music-library-more:hover,
+.music-library-more-open {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+.music-library-item:hover .music-library-more,
+.music-library-item:focus-visible .music-library-more,
+.music-library-more-open {
+  display: flex;
+}
+.music-library-item:hover .music-library-length,
+.music-library-item:focus-visible .music-library-length,
+.music-library-item:has(.music-library-more-open) .music-library-length {
+  display: none;
+}
+
+/* while songs are picked, every row shows a tick in place of its play mark. */
+.music-library-check {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.3);
+  color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.music-library-check svg {
+  width: 9px;
+  height: 9px;
+}
+.music-library-item-picked,
+.music-library-item-picked:hover {
+  background: rgba(76,208,193,0.1);
+  border-color: rgba(76,208,193,0.35);
+  color: #fff;
+}
+.music-library-item-picked .music-library-check {
+  background: #4cd0c1;
+  border-color: #4cd0c1;
+  color: #0f1923;
+}
+
+/* a mixtape's songs, under the folder each lives in. */
+.music-library-group-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.music-library-group {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 4px 4px;
+  color: rgba(255,255,255,0.45);
+  font-size: 0.68em;
+  font-weight: 600;
+}
+.music-library-group-block:first-child .music-library-group {
+  padding-top: 0;
+}
+.music-library-group span:not(.folder-cover):not(.folders-divider-line):not(.folders-heading-count) {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.music-library-group .folder-cover {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+.music-library-group .folder-cover svg {
+  width: 10px;
+  height: 10px;
+}
+
+.music-library-next .folder-toast {
+  flex-shrink: 0;
+}
+
+.music-library-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 -16px;
+  padding: 10px 12px 12px 16px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  background: rgba(10,18,26,0.4);
+}
+.music-library-footer .folders-footer-count {
+  font-size: 0.7em;
+}
+.music-library-footer .folders-footer-btn,
+.music-library-footer .search-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  font-size: 0.72em;
+}
+.music-library-footer-wide {
+  flex: 1;
+  justify-content: center;
 }

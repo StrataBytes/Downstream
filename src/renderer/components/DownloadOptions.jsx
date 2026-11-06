@@ -1,4 +1,5 @@
 import useAppStore from '../stores/useAppStore';
+import { QUALITIES, FORMATS } from '../utils/qualities';
 
 export default function DownloadOptions({ className }) {
   const quality = useAppStore((s) => s.downloadQuality);
@@ -9,14 +10,10 @@ export default function DownloadOptions({ className }) {
   return (
     <div className={className}>
       <select value={quality} onChange={(e) => setQuality(e.target.value)} title="Quality">
-        <option value="highest">Highest</option>
-        <option value="high">1080p</option>
-        <option value="medium">720p</option>
-        <option value="low">480p</option>
+        {QUALITIES.map((q) => <option key={q.id} value={q.id}>{q.label}</option>)}
       </select>
       <select value={format} onChange={(e) => setFormat(e.target.value)} title="Format">
-        <option value="mp4">MP4</option>
-        <option value="mp3">MP3</option>
+        {FORMATS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
       </select>
     </div>
   );

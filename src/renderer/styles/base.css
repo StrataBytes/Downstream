@@ -22,13 +22,21 @@ body {
   inset: 0;
   background-size: cover;
   background-position: center;
-  filter: blur(30px) brightness(0.35);
+  filter: blur(var(--bg-blur, 30px)) brightness(var(--bg-brightness, 0.35));
   transform: scale(1.15);
   opacity: 0;
   transition: opacity 0.8s ease;
   z-index: 0;
 }
 #background-layer.active { opacity: 1; }
+/* album art blurred ahead of time needs no blur of its own, and blur off shows the art or video sharp. */
+#background-layer.background-prebaked,
+#background-layer.background-sharp {
+  filter: brightness(var(--bg-brightness, 0.35));
+}
+#background-layer.background-sharp {
+  transform: none;
+}
 
 .background-video {
   width: 100%;
@@ -41,12 +49,7 @@ body {
   opacity: 0;
 }
 
-.background-video-flash {
-  animation: bgVideoFlash 0.8s ease;
-}
-
-@keyframes bgVideoFlash {
-  0% { opacity: 1; }
-  40% { opacity: 0.15; }
-  100% { opacity: 1; }
+.background-video-seeking:not(.background-video-faded) {
+  opacity: 0.55;
+  transition-duration: 0.25s;
 }

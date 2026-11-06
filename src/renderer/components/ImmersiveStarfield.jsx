@@ -97,10 +97,11 @@ function createIntensityReader(analyser) {
   };
 }
 
-function StarfieldCanvas() {
+function StarfieldCanvas({ shown }) {
   const canvasRef = useRef(null);
   const analyser = useAppStore((s) => s.musicAnalyser);
   const lite = useAppStore((s) => s.renderProfile === 'lite');
+  const density = useAppStore((s) => s.voyagerStarDensity);
   const videoVisible = useAppStore((s) => s.backgroundVideoReady && !s.backgroundVideoFaded && !!s.backgroundVideo && !(s.renderProfile === 'lite' && s.liteDisableVideoBackground));
 
   useEffect(() => {
@@ -138,7 +139,7 @@ function StarfieldCanvas() {
           : 0.25 + Math.random() * 0.25,
       };
     };
-    const stars = Array.from({ length: lite ? LITE_DENSITY : DENSITY }, () => makeStar(true));
+    const stars = Array.from({ length: Math.round((lite ? LITE_DENSITY : DENSITY) * density) }, () => makeStar(true));
 
     const resize = () => {
       width = window.innerWidth;
@@ -156,12 +157,18 @@ function StarfieldCanvas() {
       last = now;
       elapsed += dt;
       const state = useAppStore.getState();
+      // on the main menu the stars only fly while its idle view is up, and hold still while hidden.
+      const homeIdle = state.currentView === 'home' && state.homeIdleMode;
+      if (state.currentView === 'home' && !homeIdle) {
+        last = now;
+        return;
+      }
       if (trackPath !== state.musicCurrent?.path) {
         trackPath = state.musicCurrent?.path;
         intensity?.reset();
       }
       if (intensity && state.musicPlaying) drive += (intensity.read(dt) - drive) * ease(dt, DRIVE_TAU);
-      idleFactor += ((state.immersiveIdle ? 1 : 0) - idleFactor) * ease(dt, 3);
+      idleFactor += ((state.immersiveIdle || homeIdle ? 1 : 0) - idleFactor) * ease(dt, 3);
       playFactor += ((state.musicPlaying ? 1 : 0.1) - playFactor) * ease(dt, 1.4);
       ctx.clearRect(0, 0, width, height);
       const speed = (CALM_SPEED + idleFactor * IDLE_SPEED + drive * INTENSE_SPEED) * playFactor;
@@ -244,12 +251,17 @@ function StarfieldCanvas() {
       window.removeEventListener('resize', onResize);
       document.removeEventListener('visibilitychange', restart);
     };
-  }, [analyser, lite]);
+  }, [analyser, lite, density]);
 
-  return <canvas ref={canvasRef} className={`immersive-starfield${videoVisible ? ' immersive-starfield-video' : ''}`} aria-hidden="true" />;
+  return <canvas ref={canvasRef} className={`immersive-starfield${videoVisible ? ' immersive-starfield-video' : ''}${shown ? '' : ' immersive-starfield-hidden'}`} aria-hidden="true" />;
 }
 
+// voyager's stars, and with the hidden setting on, behind the main menu's idle view while music plays.
+// on the main menu they stay ready while music plays, and fade in and out with the idle view.
 export default function ImmersiveStarfield() {
-  const active = useAppStore((s) => s.currentView === 'player' && s.playerViewMode === 'immersive' && !!s.musicCurrent && !s.folderScreen);
-  return active ? <StarfieldCanvas /> : null;
+  const voyager = useAppStore((s) => s.currentView === 'player' && s.playerViewMode === 'immersive' && !!s.musicCurrent && !s.folderScreen);
+  const home = useAppStore((s) => s.currentView === 'home' && s.homeStarfield && s.musicPlaying);
+  const homeIdle = useAppStore((s) => s.homeIdleMode);
+  if (!voyager && !home) return null;
+  return <StarfieldCanvas shown={voyager || homeIdle} />;
 }

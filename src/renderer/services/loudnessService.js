@@ -8,8 +8,11 @@ import useAppStore from '../stores/useAppStore';
 import { dbg } from './debugLog';
 
 const CACHE_KEY = 'loudnessCache';
-const CACHE_CAP = 2000;
+// enough for a very large library, at about 200 characters a song, well inside what electron lets the page keep.
+const CACHE_CAP = 20000;
 const BREATHER_MS = 500;
+// the memory is written at most this often while songs are being measured, since each write is the whole of it.
+const SAVE_MS = 4000;
 
 function loadCache() {
   try {
@@ -26,7 +29,22 @@ let scanning = false;
 let inFlight = null;
 let needsRebuild = true;
 
+let saveTimer = null;
+
+// gathers the measurements made close together into one write.
+function saveSoon() {
+  if (saveTimer) return;
+  saveTimer = setTimeout(saveCache, SAVE_MS);
+}
+
+// anything still waiting is written before the window goes.
+window.addEventListener('pagehide', () => {
+  if (saveTimer) saveCache();
+});
+
 function saveCache() {
+  clearTimeout(saveTimer);
+  saveTimer = null;
   const paths = Object.keys(cache);
   if (paths.length > CACHE_CAP) {
     paths.sort((a, b) => (cache[a].used || 0) - (cache[b].used || 0));
@@ -82,6 +100,20 @@ export function moveLoudnessRecords(oldDir, newDir) {
   dbg('loudness', `moved ${count} measurement(s) to ${newDir}`);
 }
 
+// songs moved on their own keep their measurements the same way.
+export function moveLoudnessFiles(pairs) {
+  let count = 0;
+  const moved = new Map(pairs.map((p) => [p.from, p.to]));
+  for (const { from, to } of pairs) {
+    if (!cache[from] || from === to) continue;
+    cache[to] = cache[from];
+    delete cache[from];
+    count++;
+  }
+  queue = queue.map((f) => (moved.has(f.path) ? { ...f, path: moved.get(f.path) } : f));
+  if (count) saveCache();
+}
+
 function gatesOpen() {
   const s = useAppStore.getState();
   return s.musicNormalize && s.normalizerMode === 'contextual' && !s.isDownloading;
@@ -119,7 +151,7 @@ async function pump() {
       cache[file.path] = res
         ? { i: res.lufs, tp: res.truePeak, size: file.size, mtime: file.mtime, used: Date.now(), v: 1 }
         : { failed: true, size: file.size, mtime: file.mtime, used: Date.now(), v: 1 };
-      saveCache();
+      saveSoon();
       dbg('loudness', res
         ? `"${file.name || file.path}" → ${res.lufs} LUFS (TP ${res.truePeak} dBTP)`
         : `"${file.name || file.path}" → scan failed (won't retry until the file changes)`);

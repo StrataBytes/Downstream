@@ -15,6 +15,30 @@ export function SearchIcon({ size = 16 }) {
   );
 }
 
+// the downloader's icon, which animates while a batch runs and shows a check once it's done.
+export function DownloadIcon({ size, busy, done }) {
+  return (
+    <svg
+      className={busy ? 'download-icon-busy' : done ? 'download-icon-done' : undefined}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path className="download-tray" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <g className="download-arrow">
+        <polyline points="7 10 12 15 17 10" />
+        <line x1="12" y1="15" x2="12" y2="3" />
+      </g>
+      <polyline className="download-check" points="7.5 9 10.5 12 16.5 6" pathLength="1" />
+    </svg>
+  );
+}
+
 export function PlusIcon({ size = 16 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -30,7 +54,17 @@ export default function InputBar() {
   const inputRef = useRef(null);
   const revealed = useAppStore((s) => s.linkControlsRevealed);
   const setRevealed = useAppStore((s) => s.setLinkControlsRevealed);
+  const isDownloading = useAppStore((s) => s.isDownloading);
+  const totalProgress = useAppStore((s) => s.totalProgress);
   const isLink = looksLikeUrl(text.trim());
+  // says what the downloader is doing while a batch runs, and for the moment after it finishes.
+  const several = totalProgress.total > 1;
+  const finished = !isDownloading && totalProgress.visible && totalProgress.text === 'Complete!';
+  const intro = isDownloading
+    ? `Downloading your selection${several ? 's' : ''}`
+    : finished
+      ? `Your selection${several ? 's are' : ' is'} ready`
+      : 'What are you looking for?';
 
   const handleChange = (e) => {
     setText(e.target.value);
@@ -57,13 +91,15 @@ export default function InputBar() {
 
   return (
     <div className="input-bar">
-      <div className="input-bar-intro">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="7 10 12 15 17 10" />
-          <line x1="12" y1="15" x2="12" y2="3" />
-        </svg>
-        <span>What are you looking for?</span>
+      <div className={`input-bar-intro${isDownloading ? ' input-bar-intro-busy' : ''}${finished ? ' input-bar-intro-done' : ''}`}>
+        <DownloadIcon size={28} busy={isDownloading} done={finished} />
+        <div className="input-bar-intro-text">
+          <span>{intro}</span>
+          {/* stays in place while hidden, so it can ease open and shut instead of jumping. */}
+          <span className="input-bar-sub" aria-hidden={!isDownloading}>
+            You can keep browsing while {several ? 'they download' : 'it downloads'}
+          </span>
+        </div>
       </div>
       <div className="url-field">
         <input

@@ -26,7 +26,7 @@
 
 .primary-widget,
 .queue-widget {
-  background: rgba(15,25,35,0.82);
+  background: rgba(15,25,35,var(--panel-alpha, 0.82));
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 16px;
   backdrop-filter: blur(12px);

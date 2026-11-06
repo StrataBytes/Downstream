@@ -15,6 +15,62 @@
   box-shadow: 0 4px 24px rgba(0,0,0,0.4);
   animation: miniPlayerSlideIn 0.3s ease-out;
   transition: opacity 0.75s ease, transform 0.75s ease;
+  overflow: hidden;
+}
+
+/* the music and the download each sit in their own part of the pill. */
+.mini-player-music {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  transition: opacity 0.25s ease;
+}
+.mini-player-part-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+.mini-player-divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 22px;
+  margin: 0 4px 0 6px;
+  background: rgba(255,255,255,0.1);
+}
+
+.mini-player-download {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 10px 0 8px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #4cd0c1;
+  font-size: 0.7em;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.25s ease;
+}
+.mini-player-download:hover { background: rgba(76,208,193,0.1); }
+.mini-player-download-finished { color: #2ecc71; }
+
+.mini-player-download-track {
+  width: 64px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.1);
+  overflow: hidden;
+}
+.mini-player-download-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: currentColor;
+  transition: width 0.4s ease;
 }
 
 .mini-player-idle {
@@ -98,8 +154,4 @@
 .mini-player-return:hover:not(:disabled) {
   background: rgba(76,208,193,0.18);
   border-color: rgba(76,208,193,0.45);
-}
-.mini-player-return-disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
 }

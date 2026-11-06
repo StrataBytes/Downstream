@@ -2,12 +2,24 @@ import { useRef, useEffect } from 'react';
 import useAppStore from '../stores/useAppStore';
 import { dbg } from '../services/debugLog';
 import { getLoudness, requestScan } from '../services/loudnessService';
+import { downloadOwnsBackground } from '../services/downloadService';
 import { toMediaUrl } from '../utils/mediaUrl';
 
 // contextual normalization target.
 const TARGET_LUFS = -14;
 
 const MEDIA_ERR = { 1: 'ABORTED', 2: 'NETWORK', 3: 'DECODE', 4: 'SRC_NOT_SUPPORTED' };
+
+// how long a playing song can sit waiting on data before it's skipped.
+const STALL_MS = 12000;
+
+// play and pause ease the sound in and out over this short moment, unless that's turned off in playback settings.
+const PLAY_PAUSE_STEPS = 20;
+const PLAY_PAUSE_INTERVAL = 20;
+
+// a new song's soft start, when it's turned on in playback settings: the volume rises from silence the way pause lets it fall, a little slower.
+const FADE_IN_STEPS = 30;
+const FADE_IN_INTERVAL = 25;
 
 let audioCtx = null;
 let sourceNode = null;
@@ -106,6 +118,11 @@ function buildAudioGraph(audio) {
   setMusicAnalyser(analyser);
 }
 
+// the element's state, for logging a play or pause that didn't take.
+function describeElement(audio) {
+  return `paused=${audio.paused} t=${audio.currentTime.toFixed(1)} ready=${audio.readyState} net=${audio.networkState} seeking=${audio.seeking} err=${audio.error?.code ?? 'none'} ctx=${audioCtx?.state || 'none'}`;
+}
+
 export default function AudioEngine() {
   const musicCurrent = useAppStore((s) => s.musicCurrent);
   const musicPlaying = useAppStore((s) => s.musicPlaying);
@@ -128,21 +145,93 @@ export default function AudioEngine() {
   const targetVolumeRef = useRef(applyVolumeCurve(musicVolume));
   const loadGenRef = useRef(0);
   const probeTimerRef = useRef(null);
+  // a pause pressed while a track is still loading wins over the load starting it.
+  const pausedDuringLoadRef = useRef(false);
+  // the song that came up on its own when the last one ended, which waits out the gap a skipped-to song doesn't.
+  const autoAdvanceRef = useRef(null);
+  const startTimerRef = useRef(null);
+
+  // a new song's fade-in, on its own timer, and the load it belongs to while it's rising.
+  const fadeInTimerRef = useRef(null);
+  const fadingInRef = useRef(null);
+
+  const stopFadeIn = () => {
+    clearInterval(fadeInTimerRef.current);
+    fadingInRef.current = null;
+  };
+
+  // raises the volume from silence to where it's set, following the volume slider if it moves meanwhile.
+  const fadeIn = (audio, gen) => {
+    stopFadeIn();
+    fadingInRef.current = gen;
+    let step = 0;
+    fadeInTimerRef.current = setInterval(() => {
+      step++;
+      if (loadGenRef.current !== gen) {
+        stopFadeIn();
+        return;
+      }
+      const p = step / FADE_IN_STEPS;
+      audio.volume = Math.min(1, targetVolumeRef.current * p * p);
+      if (step >= FADE_IN_STEPS) stopFadeIn();
+    }, FADE_IN_INTERVAL);
+  };
 
   useEffect(() => {
     if (audioRef.current) setMusicAudioRef(audioRef);
     const audio = audioRef.current;
     if (!audio) return;
+    // a track that can't be read, like one deleted before the folder watcher noticed, or one cut short by a stopped download, is skipped.
+    // once every track has failed in a row it stops, instead of cycling through them for good.
+    let failedInARow = 0;
+    const skipUnreadable = (why) => {
+      const { musicCurrent: current, musicFiles, setMusicPlaying: stop, setSkippedTrack } = useAppStore.getState();
+      if (!current) return;
+      failedInARow++;
+      const stuck = musicFiles.length < 2 || failedInARow >= musicFiles.length;
+      setSkippedTrack({ name: current.name, stopped: stuck, at: Date.now() });
+      if (stuck) {
+        dbg('player', '!', `"${current.name}" ${why}, and nothing else here can play, stopping`);
+        audio.pause();
+        stop(false);
+        return;
+      }
+      dbg('player', `skipping "${current.name}", it ${why}`);
+      setTimeout(() => {
+        if (useAppStore.getState().musicCurrent === current) useAppStore.getState().playNextTrack();
+      }, 400);
+    };
     // surfaces media load/decode failures, the prime suspect for "plays but silent" or "won't play" symptoms.
     const onError = () => {
       const e = audio.error;
       dbg('audio', '!', `media element error: ${e ? MEDIA_ERR[e.code] || 'code ' + e.code : 'unknown'}${e?.message ? ' -- ' + e.message : ''}`);
+      skipUnreadable("couldn't be read");
     };
+    const onPlaying = () => { failedInARow = 0; };
     const onStalled = () => dbg('audio', 'stalled (data not arriving)');
+    // a song that should be playing but hasn't moved for a while, waiting on data that never comes, is treated like one that can't be read.
+    // a slow drive gets plenty of time first.
+    let lastTime = -1;
+    let stillSince = performance.now();
+    const watchdog = setInterval(() => {
+      const now = performance.now();
+      const waiting = useAppStore.getState().musicPlaying && !audio.paused && audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA;
+      if (!waiting || audio.currentTime !== lastTime) {
+        lastTime = audio.currentTime;
+        stillSince = now;
+        return;
+      }
+      if (now - stillSince < STALL_MS) return;
+      stillSince = now;
+      skipUnreadable(`stopped getting data at ${audio.currentTime.toFixed(1)}s`);
+    }, 2000);
     audio.addEventListener('error', onError);
+    audio.addEventListener('playing', onPlaying);
     audio.addEventListener('stalled', onStalled);
     return () => {
+      clearInterval(watchdog);
       audio.removeEventListener('error', onError);
+      audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('stalled', onStalled);
     };
   }, []);
@@ -174,19 +263,14 @@ export default function AudioEngine() {
       audio.load();
       currentPathRef.current = null;
       clearInterval(fadeTimerRef.current);
+      clearTimeout(startTimerRef.current);
+      stopFadeIn();
       return;
     }
-    // the folder was renamed under the playing track, so it picks up from the same spot at the new path.
+    // the folder moved under the playing track, and main still finds the song by its old link, so it just carries on.
     if (musicCurrent.movedFrom && musicCurrent.movedFrom === currentPathRef.current) {
-      const at = audio.currentTime;
-      const wasPlaying = !audio.paused;
       currentPathRef.current = musicCurrent.path;
-      audio.src = toMediaUrl(musicCurrent.path);
-      audio.addEventListener('loadedmetadata', () => {
-        audio.currentTime = at;
-        if (wasPlaying) audio.play().catch(() => {});
-      }, { once: true });
-      dbg('player', `"${musicCurrent.name}" moved with its folder, resuming at ${at.toFixed(1)}s`);
+      dbg('player', `"${musicCurrent.name}" moved with its folder, carrying on`);
       return;
     }
 
@@ -194,6 +278,7 @@ export default function AudioEngine() {
     currentPathRef.current = musicCurrent.path;
 
     clearInterval(fadeTimerRef.current);
+    stopFadeIn();
     loadGenRef.current++;
 
     if (samePath) {
@@ -221,7 +306,7 @@ export default function AudioEngine() {
     // closes a confirmed-wedged audiocontext.
     // chromium then releases the media element from the (dead) graph and it renders straight to the output device, so sound works but eq/visualizer/normalization sit out the rest of the session.
     const recoverFromWedgedGraph = () => {
-      dbg('audio', '!', 'wedged AudioContext confirmed (two silent probes while element playing) -- closing it to restore direct output. EQ, visualizer & normalization are disabled until next launch.');
+      dbg('audio', '!', 'wedged AudioContext confirmed (two silent probes where the song has sound) -- closing it to restore direct output. EQ, visualizer & normalization are disabled until next launch.');
       graphDead = true;
       try { audioCtx.close(); } catch { /* already closed */ }
       audioCtx = null;
@@ -229,40 +314,82 @@ export default function AudioEngine() {
     };
 
     clearTimeout(probeTimerRef.current);
-    audio.play()
-      .then(() => {
-        setMusicPlaying(true);
-        dbg('player', 'playback started');
-        // probes the live graph ~2.5s in to check whether real signal is reaching the output.
-        probeTimerRef.current = setTimeout(() => {
-          const a = audioRef.current;
-          if (!a || graphDead) return;
-          const srcRms = readGraphRMS();
-          dbg('audio', `probe: srcRMS=${srcRms.toFixed(4)} normGain=${normGainNode?.gain.value.toFixed(2)} vol=${a.volume.toFixed(2)} muted=${a.muted} paused=${a.paused} t=${a.currentTime.toFixed(1)} ready=${a.readyState} ctx=${audioCtx?.state} dest.ch=${audioCtx?.destination.channelCount}`);
-          // watchdog (darwin): dead-silent graph under a healthy, audibly-playing element is the wedge signature.
-          // confirms once before recovering so a track's quiet intro can't false-positive.
-          const suspectWedge = IS_DARWIN && srcRms >= 0 && srcRms < 1e-6 &&
-            !a.paused && !a.muted && a.volume > 0.01 && a.readyState >= 3 &&
-            audioCtx && audioCtx.state === 'running';
-          if (!suspectWedge) return;
-          dbg('audio', 'graph reads silent while element is playing -- re-checking in 1.5s');
-          probeTimerRef.current = setTimeout(() => {
-            const a2 = audioRef.current;
-            if (!a2 || graphDead || !audioCtx) return;
-            const rms2 = readGraphRMS();
-            if (rms2 >= 0 && rms2 < 1e-6 && !a2.paused && !a2.muted) {
-              recoverFromWedgedGraph();
-            } else {
-              dbg('audio', `re-probe OK (srcRMS=${rms2.toFixed(4)}) -- graph healthy`);
-            }
-          }, 1500);
-        }, 2500);
-      })
-      .catch((err) => dbg('player', '!', `play() rejected: ${err.name} -- ${err.message}`));
+    clearTimeout(startTimerRef.current);
+    pausedDuringLoadRef.current = false;
+    // a song that comes up on its own waits out the gap set in playback settings, and a skipped-to one starts straight away.
+    const { advanceDelay, fadeInSongs } = useAppStore.getState();
+    const gap = autoAdvanceRef.current === musicCurrent ? advanceDelay * 1000 : 0;
+    autoAdvanceRef.current = null;
+    const gen = loadGenRef.current;
+    const path = musicCurrent.path;
+    const begin = () => {
+      if (loadGenRef.current !== gen) return;
+      // a pause pressed during the gap keeps the song waiting until play is pressed.
+      if (gap && !useAppStore.getState().musicPlaying) return;
+      if (fadeInSongs) audio.volume = 0;
+      audio.play()
+        .then(() => {
+          if (pausedDuringLoadRef.current) {
+            audio.pause();
+            dbg('player', 'loaded paused, since pause was pressed while it loaded');
+            return;
+          }
+          setMusicPlaying(true);
+          dbg('player', `playback started${gap ? ` after a ${gap / 1000}s gap` : ''}${fadeInSongs ? ', fading in' : ''}`);
+          if (fadeInSongs) fadeIn(audio, gen);
+          // probes the live graph ~2.5s in to check whether real signal is reaching the output.
+          // a song that's truly silent at both probes, like one with a gap after its intro, is probed again a little later instead of being taken for a wedge.
+          // closing the context on a healthy graph freezes the element for the rest of the session, so it only happens once the file itself has sound where the graph heard none.
+          const probe = (round) => {
+            probeTimerRef.current = setTimeout(() => {
+              const a = audioRef.current;
+              if (!a || graphDead) return;
+              const srcRms = readGraphRMS();
+              const firstAt = a.currentTime;
+              dbg('audio', `probe ${round}: srcRMS=${srcRms.toFixed(4)} normGain=${normGainNode?.gain.value.toFixed(2)} vol=${a.volume.toFixed(2)} muted=${a.muted} paused=${a.paused} t=${firstAt.toFixed(1)} ready=${a.readyState} ctx=${audioCtx?.state} dest.ch=${audioCtx?.destination.channelCount}`);
+              // watchdog (darwin): dead-silent graph under a healthy, audibly-playing element is the wedge signature.
+              // confirms once before going further so a track's quiet intro can't false-positive.
+              const suspectWedge = IS_DARWIN && srcRms >= 0 && srcRms < 1e-6 &&
+                !a.paused && !a.muted && a.volume > 0.01 && a.readyState >= 3 &&
+                audioCtx && audioCtx.state === 'running';
+              if (!suspectWedge) return;
+              dbg('audio', 'graph reads silent while element is playing -- re-checking in 1.5s');
+              probeTimerRef.current = setTimeout(async () => {
+                const a2 = audioRef.current;
+                if (!a2 || graphDead || !audioCtx) return;
+                const rms2 = readGraphRMS();
+                if (!(rms2 >= 0 && rms2 < 1e-6 && !a2.paused && !a2.muted)) {
+                  dbg('audio', `re-probe OK (srcRMS=${rms2.toFixed(4)}) -- graph healthy`);
+                  return;
+                }
+                const secondAt = a2.currentTime;
+                const songSilent = await window.electronAPI.mediaSilentAt?.(path, [firstAt, secondAt]);
+                if (loadGenRef.current !== gen || graphDead || !audioCtx) return;
+                if (songSilent) {
+                  dbg('audio', `the song itself is silent at ${firstAt.toFixed(1)}s and ${secondAt.toFixed(1)}s, so the graph is fine${round < 3 ? ' -- probing again in 3s' : ''}`);
+                  if (round < 3) probe(round + 1);
+                  return;
+                }
+                if (songSilent !== false) {
+                  dbg('audio', '!', "graph reads silent but the song couldn't be checked, so it's left as it is");
+                  return;
+                }
+                recoverFromWedgedGraph();
+              }, 1500);
+            }, round === 1 ? 2500 : 3000);
+          };
+          probe(1);
+        })
+        .catch((err) => dbg('player', '!', `play() rejected: ${err.name} -- ${err.message}`));
+    };
+    if (gap) startTimerRef.current = setTimeout(begin, gap);
+    else begin();
   }, [musicCurrent]);
 
   useEffect(() => {
     const { setBackgroundThumbnail, setBackgroundVideo, clearBackgroundThumbnail } = useAppStore.getState();
+    // the downloader keeps its download's thumbnail, and hands this track's art back once it's done.
+    if (downloadOwnsBackground()) return;
     if (!musicCurrent || !albumBackground) {
       clearBackgroundThumbnail();
       return;
@@ -274,7 +401,7 @@ export default function AudioEngine() {
     }
     let cancelled = false;
     window.electronAPI.getAlbumArt(musicCurrent.path).then((dataUrl) => {
-      if (cancelled) return;
+      if (cancelled || downloadOwnsBackground()) return;
       if (dataUrl) setBackgroundThumbnail(dataUrl);
       else clearBackgroundThumbnail();
     });
@@ -287,15 +414,48 @@ export default function AudioEngine() {
     clearInterval(fadeTimerRef.current);
 
     const gen = loadGenRef.current;
+    const { fadePlayPause } = useAppStore.getState();
 
     if (musicPlaying) {
-      audio.volume = targetVolumeRef.current;
-      audio.play().catch(() => {});
+      // the play that starts a new song lands here too, and leaves its fade-in rising.
+      if (fadingInRef.current !== gen) {
+        if (fadePlayPause) {
+          // a resume rises from silence, or from wherever a pause that's still fading out had reached, and a song already playing stays where it is.
+          const from = Math.min(audio.paused ? 0 : audio.volume, targetVolumeRef.current);
+          audio.volume = from;
+          let step = 0;
+          fadeTimerRef.current = setInterval(() => {
+            step++;
+            if (loadGenRef.current !== gen) {
+              clearInterval(fadeTimerRef.current);
+              return;
+            }
+            audio.volume = Math.min(1, from + (targetVolumeRef.current - from) * (step / PLAY_PAUSE_STEPS));
+            if (step >= PLAY_PAUSE_STEPS) clearInterval(fadeTimerRef.current);
+          }, PLAY_PAUSE_INTERVAL);
+        } else {
+          audio.volume = targetVolumeRef.current;
+        }
+      }
+      audio.play().catch((err) => dbg('player', '!', `play() rejected: ${err.name} -- ${err.message} (${describeElement(audio)})`));
+      // a play that never starts, without an error, is logged too.
+      const check = setTimeout(() => {
+        if (useAppStore.getState().musicPlaying && audio.paused && loadGenRef.current === gen) {
+          dbg('player', '!', `play pressed but the element is still paused (${describeElement(audio)})`);
+        }
+      }, 2000);
+      return () => clearTimeout(check);
     } else {
-      const steps = 20;
-      const interval = 20;
-      const decrement = audio.volume / steps;
-      let remaining = steps;
+      pausedDuringLoadRef.current = true;
+      stopFadeIn();
+      if (!fadePlayPause) {
+        audio.pause();
+        audio.volume = targetVolumeRef.current;
+        if (!audio.paused) dbg('player', '!', `pause pressed but the element kept playing (${describeElement(audio)})`);
+        return undefined;
+      }
+      const decrement = audio.volume / PLAY_PAUSE_STEPS;
+      let remaining = PLAY_PAUSE_STEPS;
       fadeTimerRef.current = setInterval(() => {
         remaining--;
         if (remaining <= 0 || loadGenRef.current !== gen) {
@@ -303,11 +463,12 @@ export default function AudioEngine() {
           if (loadGenRef.current === gen) {
             audio.pause();
             audio.volume = targetVolumeRef.current;
+            if (!audio.paused) dbg('player', '!', `pause pressed but the element kept playing (${describeElement(audio)})`);
           }
         } else {
           audio.volume = Math.max(0, audio.volume - decrement);
         }
-      }, interval);
+      }, PLAY_PAUSE_INTERVAL);
     }
     return () => clearInterval(fadeTimerRef.current);
   }, [musicPlaying]);
@@ -317,7 +478,8 @@ export default function AudioEngine() {
     if (!audio) return;
     const curved = applyVolumeCurve(musicVolume);
     targetVolumeRef.current = curved;
-    if (musicPlaying) audio.volume = curved;
+    // a song fading in picks up the new volume on its own as it rises.
+    if (musicPlaying && fadingInRef.current !== loadGenRef.current) audio.volume = curved;
   }, [musicVolume]);
 
   useEffect(() => {
@@ -414,8 +576,18 @@ export default function AudioEngine() {
     if (!audio) return;
     const onEnded = () => {
       if (musicRepeat) {
-        audio.currentTime = 0;
-        audio.play().catch(() => {});
+        // a repeat waits out the same gap, and fades in the same way, as a song that comes up on its own.
+        const { advanceDelay, fadeInSongs } = useAppStore.getState();
+        const gen = loadGenRef.current;
+        const again = () => {
+          if (loadGenRef.current !== gen || !useAppStore.getState().musicPlaying) return;
+          audio.currentTime = 0;
+          if (fadeInSongs) audio.volume = 0;
+          audio.play().then(() => { if (fadeInSongs) fadeIn(audio, gen); }).catch(() => {});
+        };
+        clearTimeout(startTimerRef.current);
+        if (advanceDelay) startTimerRef.current = setTimeout(again, advanceDelay * 1000);
+        else again();
         return;
       }
       const prevPath = useAppStore.getState().musicCurrent?.path;
@@ -425,6 +597,7 @@ export default function AudioEngine() {
         const { musicCurrent: cur } = useAppStore.getState();
         if (cur) useAppStore.setState({ musicCurrent: { ...cur } });
       }
+      autoAdvanceRef.current = useAppStore.getState().musicCurrent;
     };
     audio.addEventListener('ended', onEnded);
     return () => audio.removeEventListener('ended', onEnded);

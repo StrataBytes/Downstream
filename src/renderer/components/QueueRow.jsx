@@ -1,51 +1,43 @@
-import { useEffect, useState } from 'react';
-import useAppStore from '../stores/useAppStore';
+import { useLayoutEffect, useRef } from 'react';
+import useAppStore, { queueItemEditable } from '../stores/useAppStore';
+import { QUALITIES, FORMATS } from '../utils/qualities';
 import ScrollingText from './ScrollingText';
+import TagSelect from './TagSelect';
 
-export default function QueueRow({ item, showRemove }) {
+export default function QueueRow({ item, inHistory }) {
   const { url, title, quality, format, status, progress, titleLoaded, failed, completed, fadingOut } = item;
+  const editable = useAppStore((s) => !inHistory && queueItemEditable(item, s));
+  const setQueueOptions = useAppStore((s) => s.setQueueOptions);
   const removeFromQueue = useAppStore((s) => s.removeFromQueue);
-  const setQueueItemFormat = useAppStore((s) => s.setQueueItemFormat);
-  const isDownloading = useAppStore((s) => s.isDownloading);
-  const [ctxMenu, setCtxMenu] = useState(null);
+  const rowRef = useRef(null);
 
-  const statusClass = failed ? 'status-error' : completed ? 'status-done' : '';
+  // a finished row folds away, so the rows below slide up instead of jumping.
+  // the list's gap folds with it.
+  useLayoutEffect(() => {
+    const el = rowRef.current;
+    if (!fadingOut || !el) return;
+    const instant = document.body.classList.contains('lite-no-anim');
+    el.animate([
+      { height: `${el.offsetHeight}px`, opacity: 1, marginBottom: '0px' },
+      { height: '0px', opacity: 0, marginBottom: '-8px', paddingTop: '0px', paddingBottom: '0px', borderWidth: '0px' },
+    ], { duration: instant ? 0 : 420, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' });
+  }, [fadingOut]);
 
-  const handleContextMenu = (e) => {
-    if (isDownloading) return;
-    e.preventDefault();
-    setCtxMenu({ x: e.clientX, y: e.clientY });
-  };
-
-  useEffect(() => {
-    if (!ctxMenu) return;
-    const close = () => setCtxMenu(null);
-    window.addEventListener('click', close);
-    window.addEventListener('contextmenu', close);
-    return () => {
-      window.removeEventListener('click', close);
-      window.removeEventListener('contextmenu', close);
-    };
-  }, [ctxMenu]);
-
-  const swapFormat = format === 'mp3' ? 'mp4' : 'mp3';
+  const statusClass = failed ? ' status-error' : completed ? ' status-done' : '';
+  const fill = completed ? ' fill-done' : failed ? ' fill-error' : status === 'Finalizing...' ? ' fill-finalizing' : '';
 
   return (
-    <>
-    <div className={`queue-row ${fadingOut ? 'queue-row-fade-out' : ''}`} onContextMenu={handleContextMenu}>
-      <div className="queue-row-info">
+    <div ref={rowRef} className="queue-row">
+      <div className="queue-row-top">
         <ScrollingText
           text={title}
           className={`queue-row-title${titleLoaded ? '' : ' skeleton-loader'}`}
         />
-        <span className="queue-row-tags">
-          <span className="tag">{quality}</span>
-          <span className="tag">{format?.toUpperCase()}</span>
-        </span>
-        {showRemove && !isDownloading && (
+        {!inHistory && (
           <button
             className="btn-row-remove"
             onClick={() => removeFromQueue(url)}
+            disabled={!editable}
             title="Remove from queue"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -55,30 +47,30 @@ export default function QueueRow({ item, showRemove }) {
           </button>
         )}
       </div>
-      <div className="queue-row-status">
-        <div className="mini-progress-track">
-          <div
-            className={`mini-progress-fill ${completed ? 'fill-done' : ''} ${failed ? 'fill-error' : ''} ${status === 'Finalizing...' ? 'fill-finalizing' : ''}`}
-            style={{ width: `${progress ?? 0}%` }}
+      <div className="mini-progress-track">
+        <div className={`mini-progress-fill${fill}`} style={{ width: `${progress ?? 0}%` }} />
+      </div>
+      <div className="queue-row-bottom">
+        <span className={`queue-row-label${statusClass}`} title={status}>{status}</span>
+        <span className="queue-row-tags">
+          {format !== 'mp3' && (
+            <TagSelect
+              value={quality}
+              options={QUALITIES}
+              onChange={(value) => setQueueOptions({ quality: value }, url)}
+              disabled={!editable}
+              title="Quality"
+            />
+          )}
+          <TagSelect
+            value={format}
+            options={FORMATS}
+            onChange={(value) => setQueueOptions({ format: value }, url)}
+            disabled={!editable}
+            title="Format"
           />
-        </div>
-        <span className={`queue-row-label ${statusClass}`}>{status}</span>
+        </span>
       </div>
     </div>
-    {ctxMenu && (
-      <div
-        className="queue-ctx-menu"
-        style={{ top: ctxMenu.y, left: ctxMenu.x }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          className="queue-ctx-item"
-          onClick={() => { setQueueItemFormat(url, swapFormat); setCtxMenu(null); }}
-        >
-          Switch to {swapFormat.toUpperCase()}
-        </button>
-      </div>
-    )}
-    </>
   );
 }

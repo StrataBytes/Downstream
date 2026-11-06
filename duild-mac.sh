@@ -2,7 +2,8 @@
 set -e
 
 echo "========================================"
-echo "  Downstream v2.4.1 - Build Installer"
+echo "  Downstream v3.0.0 for macOS - Build Installer"
+echo "  Target: macOS 10.15 Catalina and newer"
 echo "========================================"
 echo
 

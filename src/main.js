@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, shell, dialog, protocol, net, powerMonitor } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell, dialog, protocol, net, powerMonitor, screen } = require('electron');
 const path = require('path');
 const os = require('os');
 const { spawn, execFile } = require('child_process');
@@ -143,7 +143,33 @@ const darwin = {
     },
 };
 
-const platform = process.platform === 'darwin' ? darwin : win32;
+const linux = {
+    handleSquirrelStartup() { return false; },
+    getFFmpegPath() {
+        if (app.isPackaged) return path.join(process.resourcesPath, 'ffmpeg');
+        return path.join(__dirname, '..', '..', 'node_modules', 'ffmpeg-static', 'ffmpeg');
+    },
+    getFFmpegDir() {
+        if (app.isPackaged) return process.resourcesPath;
+        return path.join(__dirname, '..', '..', 'node_modules', 'ffmpeg-static');
+    },
+    // the official self-contained build, with its own python, so it doesn't depend on the system's.
+    getYtDlpPath() {
+        if (app.isPackaged) return path.join(process.resourcesPath, 'yt-dlp_linux');
+        return path.join(__dirname, '..', '..', 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp_linux');
+    },
+    getIconPath() {
+        if (app.isPackaged) return path.join(process.resourcesPath, '512.png');
+        return path.join(__dirname, '..', '..', 'assets', 'icons', 'png', '512.png');
+    },
+    // the same hardware cascade as windows, since a linux pc can be anything.
+    detectRenderTier() {
+        return win32.detectRenderTier();
+    },
+    attachTouchBar() {},
+};
+
+const platform = { darwin, linux }[process.platform] || win32;
 
 if (platform.handleSquirrelStartup()) {
     // squirrel handled the event, app is quitting.
@@ -216,7 +242,7 @@ if (!fs.existsSync(ffprobeTarget)) {
     } catch {}
 }
 
-if (process.platform === 'darwin') {
+if (process.platform !== 'win32') {
     try { fs.chmodSync(ffmpegPath, 0o755); } catch {}
     try { fs.chmodSync(ffprobeTarget, 0o755); } catch {}
     try { fs.chmodSync(bundledYtDlpPath, 0o755); } catch {}
@@ -458,12 +484,55 @@ const BINARY_UNAVAILABLE_FFMPEG = 'Windows blocked or removed ffmpeg (the compon
 
 let mainWindow;
 
+// the smallest window the layout is built for, at 100%.
+// a bigger interface size raises the window's smallest size to match, so the layout always has at least this much room and nothing squeezes.
+const MIN_WIDTH = 900;
+const MIN_HEIGHT = 500;
+const INTERFACE_SIZES = [0.9, 1, 1.1, 1.25];
+
+function savedInterfaceSize() {
+    const size = Number(readAppSettings().interfaceSize);
+    return INTERFACE_SIZES.includes(size) ? size : 1;
+}
+
+// the sizes the window's screen has room for at their smallest window.
+function fittingInterfaceSizes(win) {
+    const { width, height } = screen.getDisplayMatching(win.getBounds()).workAreaSize;
+    return INTERFACE_SIZES.filter((size) => MIN_WIDTH * size <= width && MIN_HEIGHT * size <= height);
+}
+
+function applyInterfaceSize(win, size) {
+    win.webContents.setZoomFactor(size);
+    const minWidth = Math.round(MIN_WIDTH * size);
+    const minHeight = Math.round(MIN_HEIGHT * size);
+    win.setMinimumSize(minWidth, minHeight);
+    const [width, height] = win.getSize();
+    if (width < minWidth || height < minHeight) win.setSize(Math.max(width, minWidth), Math.max(height, minHeight));
+}
+
+ipcMain.handle('get-interface-size', () => ({
+    size: savedInterfaceSize(),
+    sizes: INTERFACE_SIZES,
+    fitting: mainWindow ? fittingInterfaceSizes(mainWindow) : INTERFACE_SIZES,
+}));
+
+ipcMain.handle('set-interface-size', (_event, size) => {
+    if (!INTERFACE_SIZES.includes(size) || !mainWindow) return { error: 'That size isn\'t available.' };
+    if (!fittingInterfaceSizes(mainWindow).includes(size)) return { error: 'This screen is too small for that size.' };
+    writeAppSettings({ ...readAppSettings(), interfaceSize: size });
+    applyInterfaceSize(mainWindow, size);
+    console.log(`[app] interface size ${Math.round(size * 100)}%`);
+    return { size };
+});
+
 function createWindow() {
+    const size = savedInterfaceSize();
+    const { workAreaSize } = screen.getPrimaryDisplay();
     mainWindow = new BrowserWindow({
-        width: 1200,
-        height: 750,
-        minWidth: 900,
-        minHeight: 500,
+        width: Math.min(Math.round(1200 * size), workAreaSize.width),
+        height: Math.min(Math.round(750 * size), workAreaSize.height),
+        minWidth: Math.round(MIN_WIDTH * size),
+        minHeight: Math.round(MIN_HEIGHT * size),
         icon: platform.getIconPath(),
         backgroundColor: '#0f1923',
         show: false,
@@ -471,6 +540,7 @@ function createWindow() {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
             nodeIntegration: false,
+            zoomFactor: size,
         },
     });
 
@@ -563,6 +633,11 @@ if (process.platform === 'darwin') {
     app.commandLine.appendSwitch('use-mock-keychain');
 }
 
+// linux-only: the same idea for the desktop's keyring, which can otherwise ask to be unlocked or set up on launch.
+if (process.platform === 'linux') {
+    app.commandLine.appendSwitch('password-store', 'basic');
+}
+
 // chromium only applies this before the window exists, so changes take effect after a restart.
 const hardwareAccelerationDisabled = !!readAppSettings().disableHardwareAcceleration;
 if (hardwareAccelerationDisabled) app.disableHardwareAcceleration();
@@ -573,11 +648,11 @@ if (hardwareAccelerationDisabled) app.disableHardwareAcceleration();
 const dedicatedGpuRequested = process.platform === 'darwin' && !readAppSettings().preferIntegratedGpu;
 if (dedicatedGpuRequested) app.commandLine.appendSwitch('force_high_performance_gpu');
 
-// macos-only: web audio's spec-mandated behavior for a cors-cross-origin media source is to silently output zeros from createMediaElementSource, with no thrown error.
+// macos and linux: web audio's spec-mandated behavior for a cors-cross-origin media source is to silently output zeros from createMediaElementSource, with no thrown error.
 // a response header alone (access-control-allow-origin) isn't sufficient if the scheme itself isn't registered as standard, secure, and corsEnabled before app.whenReady(), since that registration determines how chromium classifies the scheme's origin.
 // windows doesn't need this, so its privileges and media:///<path> url format are left untouched here.
 protocol.registerSchemesAsPrivileged([
-    process.platform === 'darwin'
+    process.platform !== 'win32'
         ? {
             scheme: 'media',
             privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true },
@@ -592,6 +667,9 @@ app.whenReady().then(() => {
         console.warn('[yt-dlp] nightly update unavailable; using the last installed copy:', err.message);
     });
 
+    removeLeftoverWorkDirs();
+    purgeExpiredDeleted();
+
     // sleep can cut a download off mid-transfer.
     powerMonitor.on('suspend', () => console.log(`[app] system going to sleep${activeDownload ? ' during a download' : ''}`));
     powerMonitor.on('resume', () => console.log('[app] system woke up'));
@@ -600,11 +678,13 @@ app.whenReady().then(() => {
     const seenMediaPaths = new Set();
 
     protocol.handle('media', (request) => {
-        // "standard" schemes (darwin) parse with a real authority component, so the renderer sends media://local/<encoded-path> and the actual path lives in the url's pathname.
+        // "standard" schemes (macos and linux) parse with a real authority component, so the renderer sends media://local/<encoded-path> and the actual path lives in the url's pathname.
         // windows keeps the original media:///<encoded-path> (empty-host) format and parsing untouched.
-        const filePath = process.platform === 'darwin'
+        let filePath = process.platform !== 'win32'
             ? decodeURIComponent(new URL(request.url).pathname.replace(/^\//, ''))
             : decodeURIComponent(request.url.slice('media:///'.length));
+        // a song whose folder moved while it played is found at the folder's new place.
+        if (!fs.existsSync(filePath)) filePath = movedFile(filePath) || filePath;
         try {
             const stat = fs.statSync(filePath);
             const fileSize = stat.size;
@@ -698,32 +778,27 @@ function cleanYouTubeUrl(url) {
     }
 }
 
+// the tallest video each quality allows, with highest left uncapped.
+const QUALITY_HEIGHT = { uhd: 2160, qhd: 1440, high: 1080, medium: 720, low: 480 };
+
 function getFormatString(quality, format) {
     if (format === 'mp3') {
         return 'bestaudio/best';
     }
 
+    const height = QUALITY_HEIGHT[quality];
+    const cap = height ? `[height<=${height}]` : '';
+
     // the legacy build favors h.264 with aac, which older macs play smoothly and quicktime opens.
     // youtube's best 1080p is often av1, which keeps a core 2 duo busy on both cores and still drops frames.
-    if (__DOWNSTREAM_LEGACY__) {
-        const cap = { high: '[height<=1080]', medium: '[height<=720]', low: '[height<=480]' }[quality] || '';
-        return `bestvideo[vcodec^=avc]${cap}+bestaudio[ext=m4a]/bestvideo${cap}+bestaudio${cap ? `/best${cap}` : ''}/best`;
+    // youtube has no h.264 above 1080p, so 2k, 4k and highest skip the preference rather than quietly coming back as 1080p.
+    if (__DOWNSTREAM_LEGACY__ && height && height <= 1080) {
+        return `bestvideo[vcodec^=avc]${cap}+bestaudio[ext=m4a]/bestvideo${cap}+bestaudio/best${cap}/best`;
     }
 
     // no codec constraint, letting yt-dlp pick vp9/av1/h.264 freely and relying on ffmpeg (via mergeOutputFormat) to produce the mp4 container.
     // locking to [vcodec^=avc] caused sub-hd output, since youtube serves 1080p+ primarily in vp9/av1 and the best h.264 stream is often only 720p.
-    switch (quality) {
-        case 'highest':
-            return 'bestvideo+bestaudio/best';
-        case 'high':
-            return 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best';
-        case 'medium':
-            return 'bestvideo[height<=720]+bestaudio/best[height<=720]/best';
-        case 'low':
-            return 'bestvideo[height<=480]+bestaudio/best[height<=480]/best';
-        default:
-            return 'bestvideo+bestaudio/best';
-    }
+    return cap ? `bestvideo${cap}+bestaudio/best${cap}/best` : 'bestvideo+bestaudio/best';
 }
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -761,6 +836,23 @@ function forwardYtDlpOutput(chunk) {
         else if (text.startsWith('WARNING:')) console.warn(`[yt-dlp] ${text}`);
         else if (YTDLP_STEP_LINE.test(text) && !YTDLP_PROGRESS_LINE.test(text)) console.log(`[yt-dlp] ${text}`);
     }
+}
+
+// each download's own working folder, under the system's temp folder.
+const WORK_DIR_PREFIX = 'downstream-download-';
+
+// working folders left by a download that was running when downstream quit or crashed.
+function removeLeftoverWorkDirs() {
+    const tmp = os.tmpdir();
+    let removed = 0;
+    try {
+        for (const name of fs.readdirSync(tmp)) {
+            if (!name.startsWith(WORK_DIR_PREFIX)) continue;
+            fs.rmSync(path.join(tmp, name), { recursive: true, force: true });
+            removed++;
+        }
+    } catch { /* the temp folder couldn't be read */ }
+    if (removed) console.log(`[download] removed ${removed} unfinished download folder(s)`);
 }
 
 function cancelActiveDownload() {
@@ -819,13 +911,17 @@ ipcMain.handle('download-video', async (event, { url, quality, format, outputDir
 
     const outputDir = customOutputDir || app.getPath('downloads');
     const cleanUrl = cleanYouTubeUrl(url);
-    const outputTemplate = path.join(outputDir, '%(title)s.%(ext)s');
+    // yt-dlp works in a folder of its own and only moves the finished file into place.
+    // the pieces it makes along the way, like .part, .f248.webm or a half converted mp3, never land where music is played from, even when a download is stopped.
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), WORK_DIR_PREFIX));
 
     // builds cli args directly so spawn() gives real-time stdout/stderr streams.
     // yt-dlp-exec (execa) buffers output internally and doesn't emit data events until the process exits, which makes progress tracking impossible through it.
     const args = [
         cleanUrl,
-        '-o', outputTemplate,
+        '-P', `home:${outputDir}`,
+        '-P', `temp:${workDir}`,
+        '-o', '%(title)s.%(ext)s',
         '-f', getFormatString(quality, format),
         '--no-playlist',
         '--ffmpeg-location', ffmpegDir,
@@ -847,6 +943,8 @@ ipcMain.handle('download-video', async (event, { url, quality, format, outputDir
     }
     // big batches also space out the requests inside each download.
     if (gentle) args.push('--sleep-requests', '0.75');
+    // a live stream would record until stopped, so yt-dlp skips it, even when its title hadn't loaded yet to warn about it.
+    args.push('--match-filters', '!is_live');
 
     const started = Date.now();
     console.log(`[download] start ${cleanUrl} (${format}/${quality}, -f ${getFormatString(quality, format)}${gentle ? ', paced' : ''}) → ${outputDir}`);
@@ -887,7 +985,7 @@ ipcMain.handle('download-video', async (event, { url, quality, format, outputDir
     };
 
     try {
-        await withRetry(async () => {
+        const outcome = await withRetry(async () => {
             if (downloadCancelRequested) throw downloadCancelledError();
             finalizingSent = false;
             attemptStarted = Date.now();
@@ -900,9 +998,11 @@ ipcMain.handle('download-video', async (event, { url, quality, format, outputDir
                 const running = { proc, cancelled: false };
                 activeDownload = running;
                 let stderrTail = '';
+                let skippedLive = false;
                 proc.stdout.on('data', (chunk) => {
                     parseProgress(chunk);
                     forwardYtDlpOutput(chunk);
+                    if (chunk.toString().includes('does not pass filter')) skippedLive = true;
                 });
                 proc.stderr.on('data', (chunk) => {
                     parseProgress(chunk);
@@ -922,7 +1022,7 @@ ipcMain.handle('download-video', async (event, { url, quality, format, outputDir
                         reject(downloadCancelledError());
                         return;
                     }
-                    if (code === 0) resolve();
+                    if (code === 0) resolve(skippedLive ? 'live' : 'done');
                     else {
                         const tail = stderrTail.trim();
                         console.error(`[download] yt-dlp exited ${code}${tail ? ': ' + tail.split('\n').slice(-3).join(' | ') : ''}`);
@@ -932,6 +1032,10 @@ ipcMain.handle('download-video', async (event, { url, quality, format, outputDir
             });
         }, 3, 3000);
 
+        if (outcome === 'live') {
+            console.log(`[download] skipped ${cleanUrl}, it's a live stream`);
+            return { success: false, live: true };
+        }
         event.sender.send('download-progress', { url, progress: 100 });
         event.sender.send('download-complete', { url, success: true });
         event.sender.send('conversion-complete', { url, success: true });
@@ -950,6 +1054,9 @@ ipcMain.handle('download-video', async (event, { url, quality, format, outputDir
         console.error(`[download] failed ${url}: ${message}`);
         event.sender.send('download-error', { url, error: message });
         return { success: false, error: message };
+    } finally {
+        // a stopped ffmpeg can hold its file for a moment, so removing it tries again.
+        fs.promises.rm(workDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 1000 }).catch(() => {});
     }
 });
 
@@ -978,7 +1085,6 @@ ipcMain.handle('get-video-info', async (event, url) => {
             return await ytDlpExec(cleanUrl, {
                 dumpSingleJson: true,
                 noWarnings: true,
-                noCallHome: true,
                 noCheckCertificate: true,
                 skipDownload: true,
             });
@@ -995,6 +1101,7 @@ ipcMain.handle('get-video-info', async (event, url) => {
             uploader: info.uploader || info.channel || 'Unknown',
             uploadDate: info.upload_date || null,
             duration: info.duration || null,
+            live: info.is_live === true || info.live_status === 'is_live' || info.live_status === 'is_upcoming',
         };
     } catch (error) {
         console.error(`Error fetching video info for ${url}: ${describeBinaryFailure('yt-dlp', error)}`);
@@ -1227,6 +1334,84 @@ function mapSearchEntry(tab, e) {
     };
 }
 
+// yt-dlp leaves out song durations and artists and playlist sizes, though youtube sends them with the results.
+// music and playlist searches keep the pages yt-dlp downloads anyway, and these are read from them with no extra requests.
+// a page youtube has reshaped only leaves them out again.
+const CLOCK_TIME = /^\d{1,2}(:\d{2}){1,2}$/;
+const ITEM_COUNT = /^([\d,]+) (videos?|episodes?|songs?|tracks?)$/;
+
+function clockSeconds(text) {
+    return text.split(':').reduce((total, part) => total * 60 + Number(part), 0);
+}
+
+function findText(node, test) {
+    if (typeof node === 'string') return test.test(node) ? node : null;
+    if (!node || typeof node !== 'object') return null;
+    for (const value of Object.values(node)) {
+        const found = findText(value, test);
+        if (found) return found;
+    }
+    return null;
+}
+
+function collectSearchExtras(node, extras) {
+    if (!node || typeof node !== 'object') return;
+    const song = node.musicResponsiveListItemRenderer;
+    const id = song?.playlistItemData?.videoId;
+    if (id) {
+        // the second line reads artist, album and duration, split by bullets.
+        const line = (song.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || []).map((r) => r.text).join('').split(' • ');
+        const time = line.findLast((part) => CLOCK_TIME.test(part));
+        const plays = song.flexColumns?.[2]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text;
+        extras.set(id, { channel: line[0] || null, duration: time ? clockSeconds(time) : null, plays: plays || null });
+    }
+    const lockup = node.lockupViewModel;
+    if (lockup?.contentType === 'LOCKUP_CONTENT_TYPE_PLAYLIST' && lockup.contentId) {
+        const count = findText(lockup.contentImage, ITEM_COUNT)?.match(ITEM_COUNT)[1];
+        const owner = lockup.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.[0]?.metadataParts?.[0];
+        const isChannel = owner?.text?.commandRuns?.[0]?.onTap?.innertubeCommand?.commandMetadata?.webCommandMetadata?.webPageType === 'WEB_PAGE_TYPE_CHANNEL';
+        extras.set(lockup.contentId, { count: count ? Number(count.replace(/,/g, '')) : null, channel: isChannel ? owner.text.content : null });
+    }
+    for (const value of Object.values(node)) collectSearchExtras(value, extras);
+}
+
+// api pages are plain json, and a full web page carries its results as ytInitialData.
+function readSavedPage(file) {
+    const raw = fs.readFileSync(file, 'utf8');
+    if (raw.trimStart().startsWith('{')) return JSON.parse(raw);
+    const start = raw.indexOf('var ytInitialData = ');
+    const end = raw.indexOf(';</script>', start);
+    return start === -1 || end === -1 ? null : JSON.parse(raw.slice(start + 20, end));
+}
+
+// pages are read once each, as the results that need them arrive.
+// one that's still being written fails to parse, so it's tried again later.
+function savedPageReader(dir) {
+    const read = new Set();
+    const extras = new Map();
+    return (id) => {
+        if (!extras.has(id)) {
+            for (const name of fs.readdirSync(dir)) {
+                if (read.has(name)) continue;
+                try {
+                    collectSearchExtras(readSavedPage(path.join(dir, name)), extras);
+                    read.add(name);
+                } catch { /* tried again with the next result */ }
+            }
+        }
+        return extras.get(id);
+    };
+}
+
+// pages from searches still running, removed if downstream quits first.
+const searchPageDirs = new Set();
+
+function withExtras(result, extras) {
+    if (!extras) return result;
+    if (result.kind === 'playlist') return { ...result, count: extras.count, channel: result.channel || extras.channel };
+    return { ...result, channel: result.channel || extras.channel, duration: result.duration || extras.duration, plays: extras.plays };
+}
+
 function stopSearch(id) {
     const proc = activeSearches.get(id);
     if (!proc) return;
@@ -1251,10 +1436,25 @@ ipcMain.handle('search-start', async (event, { id, query, tab, start = 0 }) => {
         '--ignore-config',
         '--no-check-certificates',
     ];
+    // general results already come with everything shown.
+    let pagesDir = null;
+    if (tab !== 'general') {
+        try {
+            pagesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'downstream-search-'));
+            searchPageDirs.add(pagesDir);
+            args.push('--write-pages');
+        } catch { /* results show without the extras */ }
+    }
+    const extrasFor = pagesDir ? savedPageReader(pagesDir) : () => null;
+    const cleanUp = () => {
+        if (!pagesDir) return;
+        searchPageDirs.delete(pagesDir);
+        fs.rm(pagesDir, { recursive: true, force: true }, () => {});
+    };
     console.log(`[search] ${tab} "${text}" ${start + 1}-${end}`);
 
     return new Promise((resolve) => {
-        const proc = spawn(ytDlpPath, args, { detached: process.platform !== 'win32', windowsHide: true });
+        const proc = spawn(ytDlpPath, args, { cwd: pagesDir || undefined, detached: process.platform !== 'win32', windowsHide: true });
         activeSearches.set(id, proc);
         let buffer = '';
         let raw = 0;
@@ -1267,8 +1467,9 @@ ipcMain.handle('search-start', async (event, { id, query, tab, start = 0 }) => {
                 if (!line.trim()) continue;
                 try {
                     raw++;
-                    const result = mapSearchEntry(tab, JSON.parse(line));
-                    if (result) results.push(result);
+                    const entry = JSON.parse(line);
+                    const result = mapSearchEntry(tab, entry);
+                    if (result) results.push(withExtras(result, extrasFor(entry.id)));
                 } catch { /* a partial or non-json line */ }
             }
             shown += results.length;
@@ -1286,16 +1487,19 @@ ipcMain.handle('search-start', async (event, { id, query, tab, start = 0 }) => {
         });
         proc.on('error', (err) => {
             activeSearches.delete(id);
+            cleanUp();
             resolve({ error: describeBinaryFailure('yt-dlp', err) });
         });
         proc.on('close', (code, signal) => {
             const cancelled = !activeSearches.has(id);
             activeSearches.delete(id);
             if (cancelled || signal) {
+                cleanUp();
                 resolve({ cancelled: true });
                 return;
             }
             emit([buffer]);
+            cleanUp();
             console.log(`[search] ${tab} "${text}" done: ${shown} shown of ${raw}`);
             if (code !== 0 && raw === 0) {
                 const reason = stderrTail.trim().split('\n').pop() || `yt-dlp exited with code ${code}`;
@@ -1314,7 +1518,7 @@ ipcMain.handle('search-cancel', (_event, id) => stopSearch(id));
 ipcMain.handle('select-music-folders', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: ['openDirectory', 'multiSelections'],
-        title: 'Add Music Folders',
+        title: 'Add Media Folders',
     });
     return result.canceled ? [] : result.filePaths;
 });
@@ -1324,12 +1528,389 @@ ipcMain.handle('open-folder', (_event, folderPath) => shell.openPath(folderPath)
 // characters no folder name can hold on windows, which is the strictest of the three.
 const INVALID_NAME = /[<>:"/\\|?*\x00-\x1f]/;
 
+// why a name can't be a folder's, or null when it can.
+function folderNameProblem(name) {
+    if (!name || name === '.' || name === '..' || INVALID_NAME.test(name) || /[. ]$/.test(name)) {
+        return 'Folder names can\'t be empty, end in a dot or space, or use < > : " / \\ | ? *';
+    }
+    return null;
+}
+
+// downstream's own folder, where every folder directly inside is native.
+// music needs no permission on macos, unlike documents, and onedrive leaves it alone unless asked.
+function nativeRoot() {
+    return path.join(app.getPath('music'), 'Downstream');
+}
+
+const isNativeFolder = (folderPath) => path.dirname(folderPath) === nativeRoot();
+
+// a folder keeps its id through a rename, so one renamed outside downstream is still recognized.
+async function folderId(folderPath) {
+    const stat = await fs.promises.stat(folderPath, { bigint: true });
+    return `${stat.dev}:${stat.ino}`;
+}
+
+// the folders inside downstream's own folder, and the ids of the saved folders that are still there.
+// a root that can't be read reports an error, so nothing is taken for gone.
+ipcMain.handle('list-native-folders', async (_event, savedPaths = []) => {
+    const root = nativeRoot();
+    const ids = {};
+    for (const savedPath of savedPaths) {
+        try { ids[savedPath] = await folderId(savedPath); } catch { /* missing */ }
+    }
+    let entries;
+    try {
+        entries = await fs.promises.readdir(root, { withFileTypes: true });
+    } catch (err) {
+        if (err.code === 'ENOENT') return { root, folders: [], ids };
+        console.error(`[library] couldn't read ${root}: ${err.message}`);
+        return { root, error: err.message, ids };
+    }
+    const folders = [];
+    for (const entry of entries) {
+        if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+        const full = path.join(root, entry.name);
+        try { folders.push({ path: full, id: await folderId(full) }); } catch { /* gone since the listing */ }
+    }
+    return { root, folders, ids };
+});
+
+// saved folders gone from their path, looked for by id next to where they were, as after a rename in finder or file explorer.
+ipcMain.handle('find-moved-folders', async (_event, lost) => {
+    const found = {};
+    for (const { path: lostPath, id } of lost) {
+        const parent = path.dirname(lostPath);
+        // a missing drive is left alone, rather than looking through every other drive.
+        if (parent === '/Volumes' || path.dirname(parent) === parent) continue;
+        let entries;
+        try {
+            entries = await fs.promises.readdir(parent, { withFileTypes: true });
+        } catch {
+            continue;
+        }
+        for (const entry of entries) {
+            if (!entry.isDirectory()) continue;
+            const candidate = path.join(parent, entry.name);
+            try {
+                if (await folderId(candidate) === id) {
+                    found[lostPath] = candidate;
+                    break;
+                }
+            } catch { /* gone since the listing */ }
+        }
+    }
+    return found;
+});
+
+// a taken name gets a number, like a new folder in finder.
+ipcMain.handle('create-native-folder', async (_event, newName) => {
+    const name = typeof newName === 'string' ? newName.trim() : '';
+    const problem = folderNameProblem(name);
+    if (problem) return { error: problem };
+    const root = nativeRoot();
+    try {
+        await fs.promises.mkdir(root, { recursive: true });
+        for (let n = 1; ; n++) {
+            const target = path.join(root, n === 1 ? name : `${name} ${n}`);
+            try {
+                await fs.promises.mkdir(target);
+            } catch (err) {
+                if (err.code === 'EEXIST') continue;
+                throw err;
+            }
+            console.log(`[library] created ${path.basename(target)}`);
+            return { path: target, id: await folderId(target) };
+        }
+    } catch (err) {
+        console.error(`[library] couldn't create ${name}: ${err.message}`);
+        if (err.code === 'EACCES' || err.code === 'EPERM') return { error: `You don't have permission to make folders in ${root}.` };
+        return { error: `Couldn't create the folder: ${err.message}` };
+    }
+});
+
+// deleted folders wait in a hidden folder inside downstream's own, on the same drive, so deleting and restoring are instant.
+// each one sits in a folder of its own with a note of where it came from and what the library knew about it.
+const DELETED_DAYS = 30;
+const deletedRoot = () => path.join(nativeRoot(), '.Recently Deleted');
+const DELETED_NOTE = 'deleted.json';
+
+async function folderBytes(dir) {
+    let total = 0;
+    for (const entry of await fs.promises.readdir(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) total += await folderBytes(full);
+        else if (entry.isFile()) total += (await fs.promises.stat(full)).size;
+    }
+    return total;
+}
+
+async function listDeleted() {
+    const items = [];
+    let ids;
+    try {
+        ids = await fs.promises.readdir(deletedRoot());
+    } catch {
+        return items;
+    }
+    for (const id of ids) {
+        try {
+            const note = JSON.parse(await fs.promises.readFile(path.join(deletedRoot(), id, DELETED_NOTE), 'utf8'));
+            items.push({ id, ...note, path: path.join(deletedRoot(), id, note.name) });
+        } catch { /* not one of ours, or half removed */ }
+    }
+    return items.sort((a, b) => b.deletedAt - a.deletedAt);
+}
+
+ipcMain.handle('list-deleted', () => listDeleted());
+
+const deletedId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+// a holder for one deleted thing, with recently deleted made around it the first time.
+async function makeDeletedHolder(id) {
+    const fresh = !fs.existsSync(deletedRoot());
+    const holder = path.join(deletedRoot(), id);
+    await fs.promises.mkdir(holder, { recursive: true });
+    // a dot hides it on macos and linux, and windows needs it marked hidden.
+    if (fresh && process.platform === 'win32') execFile('attrib', ['+h', deletedRoot()], { windowsHide: true }, () => {});
+    return holder;
+}
+
+// moves a native folder into recently deleted, with what the library knew about it so a restore brings that back too.
+ipcMain.handle('delete-native-folder', async (_event, folderPath, known) => {
+    if (!isNativeFolder(folderPath)) return { error: 'Only folders in the Downstream folder can be deleted from here.' };
+    const id = deletedId();
+    const holder = path.join(deletedRoot(), id);
+    const name = path.basename(folderPath);
+    try {
+        const size = await folderBytes(folderPath);
+        await makeDeletedHolder(id);
+        await fs.promises.rename(folderPath, path.join(holder, name));
+        const note = { name, from: folderPath, deletedAt: Date.now(), size, ...known };
+        await fs.promises.writeFile(path.join(holder, DELETED_NOTE), JSON.stringify(note));
+        console.log(`[library] deleted ${name}, kept for ${DELETED_DAYS} days`);
+        return { id };
+    } catch (err) {
+        console.error(`[library] couldn't delete ${folderPath}: ${err.message}`);
+        await fs.promises.rm(holder, { recursive: true, force: true }).catch(() => {});
+        if (err.code === 'ENOENT') return { error: "Downstream can't find this folder anymore." };
+        if (err.code === 'EBUSY' || (process.platform === 'win32' && err.code === 'EPERM')) {
+            return { error: 'Something is using a file in this folder, so it can\'t be deleted right now. If it\'s playing, switch to another folder and try again.' };
+        }
+        return { error: `Couldn't delete the folder: ${err.message}` };
+    }
+});
+
+// a deleted song goes back in the folder it came from, which comes back too if it was one of downstream's own.
+async function restoreMedia(item) {
+    const dir = path.dirname(item.from);
+    try {
+        if (!fs.existsSync(dir)) {
+            if (!isNativeFolder(dir)) return { error: 'The folder it came from isn\'t there anymore.' };
+            await fs.promises.mkdir(dir, { recursive: true });
+        }
+        const target = freeFilePath(dir, item.name);
+        await moveFile(item.path, target);
+        await fs.promises.rm(path.join(deletedRoot(), item.id), { recursive: true, force: true });
+        followMedia(item.from, target, false);
+        console.log(`[library] restored ${path.basename(target)}`);
+        return { path: target, note: item };
+    } catch (err) {
+        console.error(`[library] couldn't restore ${item.name}: ${err.message}`);
+        return { error: `Couldn't restore it: ${mediaProblem(err)}` };
+    }
+}
+
+// puts a deleted folder back in the downstream folder, numbered if its name was taken since.
+ipcMain.handle('restore-deleted', async (_event, id) => {
+    const item = (await listDeleted()).find((d) => d.id === id);
+    if (!item) return { error: 'That is no longer in Recently deleted.' };
+    if (item.kind === 'media') return restoreMedia(item);
+    const target = freeNativePath(item.name);
+    try {
+        await fs.promises.rename(item.path, target);
+        await fs.promises.rm(path.join(deletedRoot(), id), { recursive: true, force: true });
+        console.log(`[library] restored ${path.basename(target)}`);
+        return { path: target, note: item };
+    } catch (err) {
+        console.error(`[library] couldn't restore ${item.name}: ${err.message}`);
+        return { error: `Couldn't restore the folder: ${err.message}` };
+    }
+});
+
+// gone for good, with nothing left to restore.
+async function purgeDeleted(ids) {
+    for (const id of ids) {
+        const item = (await listDeleted()).find((d) => d.id === id);
+        await fs.promises.rm(path.join(deletedRoot(), id), { recursive: true, force: true });
+        if (item) for (const suffix of ['', '.none']) fs.rmSync(coverCachePath(item.from) + suffix, { force: true });
+    }
+    if (ids.length) console.log(`[library] deleted ${ids.length} folder(s) for good`);
+}
+
+ipcMain.handle('purge-deleted', async (_event, ids) => {
+    try {
+        await purgeDeleted(ids);
+        return {};
+    } catch (err) {
+        console.error(`[library] couldn't empty recently deleted: ${err.message}`);
+        return { error: `Couldn't delete everything: ${err.message}` };
+    }
+});
+
+// folders deleted more than a month ago go for good when downstream starts.
+async function purgeExpiredDeleted() {
+    const cutoff = Date.now() - DELETED_DAYS * 24 * 60 * 60 * 1000;
+    const expired = (await listDeleted()).filter((d) => d.deletedAt < cutoff).map((d) => d.id);
+    await purgeDeleted(expired).catch(() => {});
+}
+
+// folders that moved while downstream ran, so a song the player opened before the move is still found.
+const movedFolders = new Map();
+// songs moved on their own by downstream, found the same way.
+const movedMedia = new Map();
+
+function movedFile(filePath) {
+    if (movedMedia.has(filePath)) return movedMedia.get(filePath);
+    for (const [from, to] of movedFolders) {
+        if (filePath.startsWith(from + path.sep)) return to + filePath.slice(from.length);
+    }
+    return null;
+}
+
+ipcMain.on('folder-moved', (_event, from, to) => {
+    for (const [old, target] of movedFolders) if (target === from) movedFolders.set(old, to);
+    movedFolders.set(from, to);
+    // song lengths follow too, so a moved folder isn't read again.
+    const lengths = knownDurations();
+    let moved = 0;
+    for (const file of Object.keys(lengths)) {
+        if (!file.startsWith(from + path.sep)) continue;
+        lengths[to + file.slice(from.length)] = lengths[file];
+        delete lengths[file];
+        moved++;
+    }
+    if (moved) saveDurationsSoon();
+});
+
+function moveCover(from, to) {
+    for (const suffix of ['', '.none']) {
+        try { fs.renameSync(coverCachePath(from) + suffix, coverCachePath(to) + suffix); } catch { /* no cover cached */ }
+    }
+}
+
+// a free spot in the downstream folder, numbered when the name is taken.
+function freeNativePath(name) {
+    for (let n = 1; ; n++) {
+        const target = path.join(nativeRoot(), n === 1 ? name : `${name} ${n}`);
+        if (!fs.existsSync(target)) return target;
+    }
+}
+
+// every file under a folder, with its size.
+async function listFiles(dir, base = dir) {
+    const files = [];
+    for (const entry of await fs.promises.readdir(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) files.push(...await listFiles(full, base));
+        else if (entry.isFile()) files.push({ rel: path.relative(base, full), size: (await fs.promises.stat(full)).size });
+    }
+    return files;
+}
+
+function importProblem(err) {
+    if (err.code === 'ENOSPC') return 'There isn\'t enough space for the folder.';
+    if (err.code === 'EBUSY' || (process.platform === 'win32' && err.code === 'EPERM')) {
+        return 'Something is using a file in this folder. If it\'s playing, switch to another folder and try again.';
+    }
+    if (err.code === 'EACCES' || err.code === 'EPERM') return 'Downstream doesn\'t have permission to do that.';
+    return `Couldn't import the folder: ${err.message}`;
+}
+
+// one import runs at a time, and can be stopped between files.
+let activeImport = null;
+
+ipcMain.handle('cancel-import', () => {
+    if (activeImport) activeImport.cancelled = true;
+});
+
+// brings an external folder into the downstream folder.
+// a move on the same drive is a rename.
+// anything else is copied into a hidden folder file by file, checked, and only then named, with a move removing the original last.
+ipcMain.handle('import-folder', async (event, { folderPath, move }) => {
+    const root = nativeRoot();
+    if (activeImport) return { error: 'Another folder is still being imported.' };
+    if (isNativeFolder(folderPath)) return { error: 'This folder is already in the Downstream folder.' };
+    if (folderPath === root || root.startsWith(folderPath + path.sep)) return { error: 'This folder holds the Downstream folder, so it can\'t go inside it.' };
+    // claimed before anything is awaited, so a second import can't slip in.
+    const job = { cancelled: false };
+    activeImport = job;
+    const name = path.basename(folderPath);
+    let staging = null;
+    try {
+        try {
+            if (!(await fs.promises.stat(folderPath)).isDirectory()) throw new Error('not a folder');
+        } catch {
+            return { error: "Downstream can't find this folder anymore." };
+        }
+        await fs.promises.mkdir(root, { recursive: true });
+        if (move) {
+            const target = freeNativePath(name);
+            try {
+                await fs.promises.rename(folderPath, target);
+                moveCover(folderPath, target);
+                console.log(`[library] moved ${name} into the Downstream folder`);
+                return { path: target, id: await folderId(target) };
+            } catch (err) {
+                if (err.code !== 'EXDEV') throw err;
+            }
+        }
+        const files = await listFiles(folderPath);
+        const total = files.reduce((sum, f) => sum + f.size, 0);
+        staging = path.join(root, `.importing-${process.pid}-${Date.now()}`);
+        await fs.promises.mkdir(staging);
+        let done = 0;
+        for (const file of files) {
+            if (job.cancelled) {
+                await fs.promises.rm(staging, { recursive: true, force: true });
+                console.log(`[library] import of ${name} cancelled`);
+                return { cancelled: true };
+            }
+            const to = path.join(staging, file.rel);
+            await fs.promises.mkdir(path.dirname(to), { recursive: true });
+            await fs.promises.copyFile(path.join(folderPath, file.rel), to, fs.constants.COPYFILE_FICLONE);
+            if ((await fs.promises.stat(to)).size !== file.size) throw new Error(`${file.rel} didn't copy completely.`);
+            done += file.size;
+            event.sender.send('import-progress', { folderPath, done, total });
+        }
+        const target = freeNativePath(name);
+        await fs.promises.rename(staging, target);
+        staging = null;
+        moveCover(folderPath, target);
+        console.log(`[library] ${move ? 'moved' : 'copied'} ${name} into the Downstream folder (${files.length} file(s), ${Math.round(total / 1048576)} MB)`);
+        let leftover = false;
+        if (move) {
+            try {
+                await fs.promises.rm(folderPath, { recursive: true });
+            } catch (err) {
+                console.error(`[library] couldn't remove the original ${folderPath}: ${err.message}`);
+                leftover = true;
+            }
+        }
+        return { path: target, id: await folderId(target), leftover };
+    } catch (err) {
+        console.error(`[library] import of ${folderPath} failed: ${err.message}`);
+        if (staging) await fs.promises.rm(staging, { recursive: true, force: true }).catch(() => {});
+        return { error: importProblem(err) };
+    } finally {
+        activeImport = null;
+    }
+});
+
 // renames a music folder on disk, and moves its cached cover along with it.
 ipcMain.handle('rename-folder', async (_event, folderPath, newName) => {
     const name = typeof newName === 'string' ? newName.trim() : '';
-    if (!name || name === '.' || name === '..' || INVALID_NAME.test(name) || /[. ]$/.test(name)) {
-        return { error: 'Folder names can\'t be empty, end in a dot or space, or use < > : " / \\ | ? *' };
-    }
+    const problem = folderNameProblem(name);
+    if (problem) return { error: problem };
     const target = path.join(path.dirname(folderPath), name);
     if (target === folderPath) return { path: folderPath };
     // a change of capitals only is the same folder on macos and windows, so it goes through a temporary name.
@@ -1352,12 +1933,16 @@ ipcMain.handle('rename-folder', async (_event, folderPath, newName) => {
         if (err.code === 'EACCES' || err.code === 'EPERM') return { error: "You don't have permission to rename this folder." };
         return { error: `Couldn't rename the folder: ${err.message}` };
     }
-    for (const suffix of ['', '.none']) {
-        try { fs.renameSync(coverCachePath(folderPath) + suffix, coverCachePath(target) + suffix); } catch { /* no cover cached */ }
-    }
+    moveCover(folderPath, target);
     console.log(`[library] renamed ${path.basename(folderPath)} to ${name}`);
     return { path: target };
 });
+
+// pieces yt-dlp makes while it works, which a download stopped by an older version could leave next to the music.
+// they look like music files but are unfinished, so the library leaves them out.
+const DOWNLOAD_LEFTOVER = /\.(temp|f\d+(-\w+)?)\.[a-z0-9]+$/i;
+
+const playable = (name, pattern) => pattern.test(name) && !DOWNLOAD_LEFTOVER.test(name);
 
 function musicPattern(extensions) {
     const exts = (extensions && extensions.length > 0) ? extensions : ['mp3', 'flac', 'wav'];
@@ -1372,7 +1957,7 @@ ipcMain.handle('scan-music-folders', async (_event, folderPaths, extensions) => 
     for (const folderPath of folderPaths) {
         try {
             const entries = await fs.promises.readdir(folderPath, { withFileTypes: true });
-            counts[folderPath] = entries.filter((e) => e.isFile() && pattern.test(e.name)).length;
+            counts[folderPath] = entries.filter((e) => e.isFile() && playable(e.name, pattern)).length;
         } catch {
             counts[folderPath] = null;
         }
@@ -1420,7 +2005,7 @@ ipcMain.handle('get-folder-cover', async (_event, folderPath, extensions, refres
     let names;
     try {
         const pattern = musicPattern(extensions);
-        names = (await fs.promises.readdir(folderPath)).filter((n) => pattern.test(n)).sort().slice(0, COVER_TRIES);
+        names = (await fs.promises.readdir(folderPath)).filter((n) => playable(n, pattern)).sort().slice(0, COVER_TRIES);
     } catch {
         return null;
     }
@@ -1441,12 +2026,371 @@ ipcMain.handle('get-folder-cover', async (_event, folderPath, extensions, refres
     return null;
 });
 
+// how long each song is, read once and remembered by path with its size and modified time, so a replaced file is read again.
+const durationsPath = () => path.join(app.getPath('userData'), 'durations.json');
+let durations = null;
+let durationsSave = null;
+
+function knownDurations() {
+    if (!durations) {
+        try {
+            durations = JSON.parse(fs.readFileSync(durationsPath(), 'utf8'));
+        } catch {
+            durations = {};
+        }
+    }
+    return durations;
+}
+
+function saveDurationsSoon() {
+    clearTimeout(durationsSave);
+    durationsSave = setTimeout(() => {
+        try {
+            fs.writeFileSync(durationsPath(), JSON.stringify(durations));
+        } catch (err) {
+            console.error(`[library] couldn't save song lengths: ${err.message}`);
+        }
+    }, 2000);
+}
+
+// ffmpeg prints a file's length as it opens it, and nothing more is read.
+function readDuration(file) {
+    return new Promise((resolve) => {
+        const proc = spawn(ffmpegPath, ['-hide_banner', '-i', file], { windowsHide: true });
+        let output = '';
+        proc.stderr.on('data', (chunk) => { output += chunk; });
+        const timer = setTimeout(() => { try { proc.kill('SIGKILL'); } catch {} }, 10000);
+        proc.on('error', () => { clearTimeout(timer); resolve(null); });
+        proc.on('close', () => {
+            clearTimeout(timer);
+            const m = output.match(/Duration: (\d+):(\d+):(\d+(?:\.\d+)?)/);
+            resolve(m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + parseFloat(m[3]) : null);
+        });
+    });
+}
+
+// at most a few lengths are read at once, however many folders ask.
+const LENGTH_READERS = 4;
+let lengthReaders = 0;
+const lengthQueue = [];
+
+async function withLengthReader(read) {
+    while (lengthReaders >= LENGTH_READERS) await new Promise((resolve) => lengthQueue.push(resolve));
+    lengthReaders++;
+    try {
+        return await read();
+    } finally {
+        lengthReaders--;
+        lengthQueue.shift()?.();
+    }
+}
+
+// what the info panel shows for folders: tracks, size, formats and total length.
+// lengths not known yet are only read when asked to, and the result says how many are still unknown.
+ipcMain.handle('folder-details', async (_event, folderPaths, extensions, measure) => {
+    const pattern = musicPattern(extensions);
+    const lengths = knownDurations();
+    const details = { tracks: 0, size: 0, duration: 0, unknown: 0, formats: {}, missing: 0 };
+    const unknown = [];
+    for (const folderPath of folderPaths) {
+        let entries;
+        try {
+            entries = await fs.promises.readdir(folderPath, { withFileTypes: true });
+        } catch {
+            details.missing++;
+            continue;
+        }
+        for (const entry of entries) {
+            if (!entry.isFile() || !playable(entry.name, pattern)) continue;
+            const file = path.join(folderPath, entry.name);
+            let stat;
+            try {
+                stat = await fs.promises.stat(file);
+            } catch {
+                continue;
+            }
+            const mtime = Math.floor(stat.mtimeMs);
+            const ext = path.extname(entry.name).slice(1).toLowerCase();
+            details.tracks++;
+            details.size += stat.size;
+            details.formats[ext] = (details.formats[ext] || 0) + 1;
+            const known = lengths[file];
+            if (known && known.size === stat.size && known.mtime === mtime) details.duration += known.duration;
+            else unknown.push({ file, size: stat.size, mtime });
+        }
+    }
+    if (measure && unknown.length > 0 && await ensureFfmpegBinary()) {
+        await Promise.all(unknown.map((item) => withLengthReader(async () => {
+            // a file that can't be read counts as no time, so it isn't tried again until it changes.
+            const duration = (await readDuration(item.file)) || 0;
+            lengths[item.file] = { size: item.size, mtime: item.mtime, duration };
+            details.duration += duration;
+        })));
+        saveDurationsSoon();
+        console.log(`[library] read the length of ${unknown.length} song(s)`);
+    } else {
+        details.unknown = unknown.length;
+    }
+    return details;
+});
+
+// === managing media ===
+// songs added, moved and deleted one by one from inside downstream, so finder or file explorer isn't needed.
+
+// a free name for a file in a folder, numbered like "Golden Hour (2)" when it's taken.
+function freeFilePath(dir, fileName) {
+    const ext = path.extname(fileName);
+    const stem = fileName.slice(0, fileName.length - ext.length);
+    for (let n = 1; ; n++) {
+        const target = path.join(dir, n === 1 ? fileName : `${stem} (${n})${ext}`);
+        if (!fs.existsSync(target)) return target;
+    }
+}
+
+function mediaProblem(err) {
+    if (err.code === 'ENOENT') return 'Downstream can\'t find it anymore.';
+    if (err.code === 'ENOSPC') return 'There isn\'t enough space for it.';
+    if (err.code === 'EBUSY' || (process.platform === 'win32' && err.code === 'EPERM')) return 'Something else is using it right now.';
+    if (err.code === 'EACCES' || err.code === 'EPERM') return 'Downstream doesn\'t have permission to do that.';
+    return err.message;
+}
+
+// windows can keep hold of a file the player has only just let go of, so a busy one is tried a few more times.
+async function whenFree(step) {
+    for (let tries = 0; ; tries++) {
+        try {
+            return await step();
+        } catch (err) {
+            const busy = process.platform === 'win32' && (err.code === 'EBUSY' || err.code === 'EPERM');
+            if (!busy || tries >= 3) throw err;
+            await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+    }
+}
+
+// copies a file next to where it's going under a hidden name, checks it, and only then names it.
+// it keeps the original's modified time, so the length and loudness known about it still match.
+async function copyChecked(from, to) {
+    const part = path.join(path.dirname(to), `.${path.basename(to)}.part-${process.pid}`);
+    try {
+        await fs.promises.copyFile(from, part, fs.constants.COPYFILE_FICLONE);
+        const [original, copy] = await Promise.all([fs.promises.stat(from), fs.promises.stat(part)]);
+        if (original.size !== copy.size) throw new Error(`${path.basename(from)} didn't copy completely.`);
+        await fs.promises.utimes(part, original.atimeMs / 1000, original.mtimeMs / 1000);
+        await fs.promises.rename(part, to);
+    } catch (err) {
+        await fs.promises.rm(part, { force: true }).catch(() => {});
+        throw err;
+    }
+}
+
+// a rename on the same drive, and a checked copy with the original removed after on another.
+// a copy whose original can't be removed is taken back, so the song is never in two places.
+async function moveFile(from, to) {
+    try {
+        await whenFree(() => fs.promises.rename(from, to));
+        return;
+    } catch (err) {
+        if (err.code !== 'EXDEV') throw err;
+    }
+    await copyChecked(from, to);
+    try {
+        await whenFree(() => fs.promises.rm(from));
+    } catch (err) {
+        await fs.promises.rm(to, { force: true }).catch(() => {});
+        throw err;
+    }
+}
+
+// what main knows about a song by its path follows it to the new one.
+// a move made while it plays also leaves a forwarding note, so the player still finds it.
+function followMedia(from, to, playing = true) {
+    if (playing) {
+        for (const [old, target] of movedMedia) if (target === from) movedMedia.set(old, to);
+        movedMedia.set(from, to);
+    }
+    const lengths = knownDurations();
+    if (lengths[from] && from !== to) {
+        lengths[to] = lengths[from];
+        delete lengths[from];
+        saveDurationsSoon();
+    }
+}
+
+// copies downstream made this session, the only files undoing an add may remove.
+const madeCopies = new Set();
+
+// moves or copies songs into folders, each under a free name, and says how each one went, so one that can't go doesn't stop the rest.
+// each item names the song, the folder it goes to, and optionally the name it should have there.
+ipcMain.handle('place-media', async (_event, { items, copy }) => {
+    const folders = new Map();
+    const isFolder = async (dir) => {
+        if (!folders.has(dir)) folders.set(dir, await fs.promises.stat(dir).then((s) => s.isDirectory(), () => false));
+        return folders.get(dir);
+    };
+    const results = [];
+    for (const { from, dir, name } of items) {
+        const result = { from };
+        try {
+            if (!(await isFolder(dir))) {
+                result.error = 'Downstream can\'t find that folder anymore.';
+            } else if (!copy && path.dirname(from) === dir && (!name || name === path.basename(from))) {
+                result.to = from;
+                result.same = true;
+            } else {
+                const to = freeFilePath(dir, name || path.basename(from));
+                if (copy) {
+                    await copyChecked(from, to);
+                    madeCopies.add(to);
+                } else {
+                    await moveFile(from, to);
+                    followMedia(from, to);
+                }
+                result.to = to;
+            }
+        } catch (err) {
+            console.error(`[library] couldn't ${copy ? 'copy' : 'move'} ${path.basename(from)}: ${err.message}`);
+            result.error = mediaProblem(err);
+        }
+        results.push(result);
+    }
+    const done = results.filter((r) => r.to && !r.same).length;
+    if (done) console.log(`[library] ${copy ? 'copied' : 'moved'} ${done} song(s)`);
+    return results;
+});
+
+// undoing an add that copied takes the copies away again.
+ipcMain.handle('discard-copies', async (_event, files) => {
+    for (const file of files) {
+        if (!madeCopies.has(file)) continue;
+        try {
+            await whenFree(() => fs.promises.rm(file));
+            madeCopies.delete(file);
+        } catch (err) {
+            console.error(`[library] couldn't take back the copy ${path.basename(file)}: ${err.message}`);
+        }
+    }
+});
+
+// songs go into recently deleted like folders do, each in a holder of its own with a note of where it came from.
+// the note is written before the song goes in, so a holder is never left with a song and no way back.
+ipcMain.handle('delete-media', async (_event, files) => {
+    const results = [];
+    for (const file of files) {
+        const id = deletedId();
+        const name = path.basename(file);
+        let holder = null;
+        try {
+            const { size } = await fs.promises.stat(file);
+            holder = await makeDeletedHolder(id);
+            const known = knownDurations()[file];
+            const note = { kind: 'media', name, from: file, deletedAt: Date.now(), size, duration: known?.duration ?? null };
+            await fs.promises.writeFile(path.join(holder, DELETED_NOTE), JSON.stringify(note));
+            await moveFile(file, path.join(holder, name));
+            results.push({ file, id });
+        } catch (err) {
+            console.error(`[library] couldn't delete ${name}: ${err.message}`);
+            if (holder) await fs.promises.rm(holder, { recursive: true, force: true }).catch(() => {});
+            results.push({ file, error: mediaProblem(err) });
+        }
+    }
+    const done = results.filter((r) => r.id).length;
+    if (done) console.log(`[library] deleted ${done} song(s), kept for ${DELETED_DAYS} days`);
+    return results;
+});
+
+ipcMain.handle('pick-media-files', async (_event, extensions) => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openFile', 'multiSelections'],
+        title: 'Add Media',
+        buttonLabel: 'Add',
+        filters: [{ name: 'Media', extensions: extensions?.length ? extensions : ['mp3', 'flac', 'wav'] }],
+    });
+    return result.canceled ? [] : result.filePaths;
+});
+
+ipcMain.handle('show-media', (_event, filePath) => shell.showItemInFolder(filePath));
+
+// the most songs a search brings back, which is more than anyone reads.
+const SEARCH_LIMIT = 200;
+
+// songs whose names hold the search, across the library's folders, folder by folder.
+ipcMain.handle('search-media', async (_event, folderPaths, query, extensions) => {
+    const pattern = musicPattern(extensions);
+    const q = String(query || '').trim().toLowerCase();
+    const found = [];
+    if (!q) return found;
+    for (const folderPath of folderPaths) {
+        let entries;
+        try {
+            entries = await fs.promises.readdir(folderPath, { withFileTypes: true });
+        } catch {
+            continue;
+        }
+        for (const entry of entries) {
+            if (!entry.isFile() || !playable(entry.name, pattern)) continue;
+            const name = entry.name.replace(pattern, '');
+            if (!name.toLowerCase().includes(q)) continue;
+            found.push({ name, path: path.join(folderPath, entry.name), folder: folderPath });
+            if (found.length >= SEARCH_LIMIT) return found;
+        }
+    }
+    return found;
+});
+
+// each song's size, format and length, for the info panel and the library's rows.
+// lengths not known yet are only read when asked to.
+ipcMain.handle('media-details', async (_event, files, measure) => {
+    const lengths = knownDurations();
+    const details = {};
+    const unknown = [];
+    for (const file of files) {
+        let stat;
+        try {
+            stat = await fs.promises.stat(file);
+        } catch {
+            continue;
+        }
+        const mtime = Math.floor(stat.mtimeMs);
+        const known = lengths[file];
+        const item = {
+            size: stat.size,
+            mtime,
+            ext: path.extname(file).slice(1).toLowerCase(),
+            duration: known && known.size === stat.size && known.mtime === mtime ? known.duration : null,
+        };
+        details[file] = item;
+        if (item.duration === null) unknown.push(file);
+    }
+    if (measure && unknown.length > 0 && await ensureFfmpegBinary()) {
+        await Promise.all(unknown.map((file) => withLengthReader(async () => {
+            const item = details[file];
+            // a file that can't be read counts as no time, so it isn't tried again until it changes.
+            item.duration = (await readDuration(file)) || 0;
+            lengths[file] = { size: item.size, mtime: item.mtime, duration: item.duration };
+        })));
+        saveDurationsSoon();
+    }
+    return details;
+});
+
+// which drive each folder is on, so moving to another one can be marked as the slower copy it is.
+ipcMain.handle('folder-drives', async (_event, folderPaths) => {
+    const drives = {};
+    for (const folderPath of folderPaths) {
+        try {
+            drives[folderPath] = (await fs.promises.stat(folderPath)).dev;
+        } catch { /* gone, so it isn't offered */ }
+    }
+    return drives;
+});
+
 ipcMain.handle('read-music-folder', async (_event, folderPath, extensions) => {
     try {
         const pattern = musicPattern(extensions);
         const entries = fs.readdirSync(folderPath, { withFileTypes: true });
         const audioFiles = entries
-            .filter((e) => e.isFile() && pattern.test(e.name))
+            .filter((e) => e.isFile() && playable(e.name, pattern))
             .map((e) => {
                 const fullPath = path.join(folderPath, e.name);
                 // size and mtime identify the file for the renderer's loudness cache, so a replaced or re-downloaded file re-measures itself.
@@ -1514,8 +2458,9 @@ let loudnessProc = null;
 function runLoudnessScan(filePath) {
     return new Promise((resolve) => {
         // -vn/-sn/-dn matter for .mp4, since without them ffmpeg decodes the video stream into the null sink too, wasting most of the cpu.
+        // its progress is left on, so a slow scan can be told apart from a stuck one.
         const args = [
-            '-hide_banner', '-nostats',
+            '-hide_banner',
             '-i', filePath,
             '-vn', '-sn', '-dn',
             '-af', 'loudnorm=I=-14:TP=-1:print_format=json',
@@ -1523,25 +2468,34 @@ function runLoudnessScan(filePath) {
         ];
         let stderrTail = '';
         let settled = false;
-        let timer = null;
+        let stall = null;
+        let cap = null;
         const finish = (result) => {
             if (settled) return;
             settled = true;
-            clearTimeout(timer);
+            clearTimeout(stall);
+            clearTimeout(cap);
             loudnessProc = null;
             resolve(result);
         };
         const proc = spawn(ffmpegPath, args);
         loudnessProc = proc;
-        // a healthy audio-only scan finishes in seconds.
-        // past 3 minutes it's wedged on a corrupt file, so kill it and cache the failure.
-        timer = setTimeout(() => {
-            console.warn(`[loudness] timeout scanning ${path.basename(filePath)} — killing ffmpeg`);
+        const giveUp = (why) => {
+            console.warn(`[loudness] ${why} scanning ${path.basename(filePath)}, killing ffmpeg`);
             try { proc.kill('SIGKILL'); } catch { /* ignore */ }
             finish(null);
-        }, 180000);
+        };
+        // ffmpeg reports its progress twice a second, so a scan that goes quiet for a minute is stuck on a corrupt file, and its failure is cached.
+        // a slow one keeps going however long the song is, since an older mac can take a third of a song's length or more.
+        const watch = () => {
+            clearTimeout(stall);
+            stall = setTimeout(() => giveUp('no progress'), 60000);
+        };
+        watch();
+        cap = setTimeout(() => giveUp('30 minutes'), 30 * 60000);
         proc.stderr.on('data', (chunk) => {
             stderrTail = (stderrTail + chunk.toString()).slice(-4000);
+            watch();
         });
         proc.on('error', (e) => {
             console.error(`[loudness] ${describeBinaryFailure('ffmpeg', e)}`);
@@ -1590,8 +2544,53 @@ ipcMain.handle('measure-loudness', async (_event, filePath) => {
     return run;
 });
 
+// whether a song has a moment of true silence near each of the given times, read straight from the file.
+// the player asks before taking a silent audio graph for a stuck one, since some songs really are silent for a while.
+// null when the file can't be read, so the player leaves things alone.
+function silentNear(filePath, at) {
+    return new Promise((resolve) => {
+        let stderr = '';
+        const from = Math.max(0, at - 0.2);
+        const proc = spawn(ffmpegPath, [
+            '-hide_banner', '-nostats',
+            '-ss', from.toFixed(3), '-t', '0.4',
+            '-i', filePath,
+            '-map', '0:a:0',
+            '-af', 'silencedetect=noise=-90dB:d=0.02',
+            '-f', 'null', '-',
+        ], { windowsHide: true });
+        const timer = setTimeout(() => {
+            try { proc.kill('SIGKILL'); } catch { /* ignore */ }
+            resolve(null);
+        }, 10000);
+        proc.stderr.on('data', (chunk) => { stderr = (stderr + chunk.toString()).slice(-4000); });
+        proc.on('error', () => {
+            clearTimeout(timer);
+            resolve(null);
+        });
+        proc.on('close', (code) => {
+            clearTimeout(timer);
+            resolve(code === 0 ? stderr.includes('silence_start') : null);
+        });
+    });
+}
+
+ipcMain.handle('media-silent-at', async (_event, filePath, times) => {
+    if (typeof filePath !== 'string' || !Array.isArray(times) || !times.length) return null;
+    if (!fs.existsSync(filePath) || !(await ensureFfmpegBinary())) return null;
+    for (const at of times.slice(0, 4)) {
+        if (!Number.isFinite(at)) return null;
+        const silent = await silentNear(filePath, at);
+        if (silent !== true) return silent;
+    }
+    return true;
+});
+
 app.on('will-quit', () => {
     try { loudnessProc?.kill('SIGKILL'); } catch { /* ignore */ }
+    searchPageDirs.forEach((dir) => {
+        try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* left for the system to clear */ }
+    });
 });
 
 ipcMain.handle('check-version', async () => {
@@ -1721,6 +2720,7 @@ ipcMain.handle('set-dedicated-gpu', (_event, on) => {
 
 ipcMain.handle('reset-app-settings', () => {
     fs.rmSync(appSettingsPath(), { force: true });
+    if (mainWindow) applyInterfaceSize(mainWindow, 1);
     console.log('[settings] app settings reset');
 });
 

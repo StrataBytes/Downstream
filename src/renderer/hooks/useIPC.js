@@ -8,6 +8,11 @@ export function useIPCListeners() {
     if (listenersRegistered) return;
     listenersRegistered = true;
 
+    window.electronAPI.on('import-progress', (_event, { folderPath, done, total }) => {
+      const current = useAppStore.getState().folderImport;
+      if (current?.path === folderPath) useAppStore.getState().setFolderImport({ ...current, done, total });
+    });
+
     window.electronAPI.on('download-progress', (_event, { url, progress, finalizing }) => {
       useAppStore.getState().updateQueueItem(url, {
         progress,

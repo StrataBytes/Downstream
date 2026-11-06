@@ -17,9 +17,12 @@
 @import './mini-player.css';
 @import './behavior.css';
 @import './search.css';
-@import './new-files-popup.css';
+@import './new-media-toast.css';
 @import './guide.css';
 @import './options.css';
+@import './settings.css';
+@import './settings-previews.css';
+@import './guide-scenes.css';
 @import './lite.css';
 @import './debug.css';
 

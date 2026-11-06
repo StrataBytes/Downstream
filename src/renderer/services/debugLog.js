@@ -57,7 +57,7 @@ const quoted = (key) => (value) => (value ? `"${value[key]}"` : 'none');
 const WATCHED = {
   currentView: String,
   folderScreen: String,
-  optionsOpen: String,
+  settingsOpen: String,
   isDownloading: String,
   downloadCancelled: String,
   queue: itemCount,

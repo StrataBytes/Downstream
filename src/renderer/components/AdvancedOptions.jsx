@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 import useAppStore from '../stores/useAppStore';
+import { Group, Rows, Row, Switch } from './SettingsParts';
 
 // preferences that "reset settings" puts back to their defaults.
 // saved folders, custom eq presets, loudness measurements and onboarding progress are left alone.
 const SETTING_KEYS = [
-  'acceptMp3', 'acceptMp4', 'acceptFlac', 'acceptWav',
+  'acceptMp3', 'acceptMp4', 'acceptFlac', 'acceptWav', 'askWhereToSave',
   'behaviorAlbumBackground', 'behaviorDisableSlidingTitles', 'behaviorHideProgressBar', 'behaviorHideVisualizer',
-  'behaviorHoldVideoFrame', 'behaviorNormalizeOnStart', 'behaviorShuffleOnStart', 'behaviorWatchFolder',
+  'behaviorHoldVideoFrame', 'behaviorNormalizeOnStart', 'behaviorRememberShuffle', 'behaviorShuffleOnStart', 'behaviorWatchFolder',
   'checkUpdatesOnStart', 'eqActivePreset', 'eqBands', 'fastDownloadPacing',
   'liteDisableAnimations', 'liteDisableBlur', 'liteDisableVideoBackground', 'liteDisableVisualizer',
-  'musicLibrarySort', 'normalizerMode', 'normalizerReactivePreset', 'playerViewMode',
+  'musicLibrarySort', 'musicNormalize', 'normalizerMode', 'normalizerReactivePreset', 'playerViewMode',
   'renderProfile', 'showAutoLiteNotice', 'touchBarPrefs', 'visualizerDetail', 'visualizerStyle',
+  'lookVisualizerLift', 'lookVisualizerBrightness', 'lookBlurQuality', 'lookBlurIntensity', 'lookBackgroundDim', 'lookPanelOpacity',
+  'voyagerFadeAfter', 'voyagerStarDensity', 'seekStep', 'homeStarfield', 'homeOriginal',
 ];
 
 function timeAgo(ms) {
@@ -24,15 +27,16 @@ function formatSize(bytes) {
   return bytes >= 1073741824 ? `${(bytes / 1073741824).toFixed(1)} GB` : `${Math.max(1, Math.round(bytes / 1048576))} MB`;
 }
 
-function Switch({ on, onClick }) {
+function SwitchButton({ on, label, onClick }) {
   return (
-    <div className={`behavior-switch${on ? ' behavior-switch-on' : ''}`} onClick={onClick}>
-      <div className="behavior-switch-thumb" />
-    </div>
+    <button type="button" role="switch" aria-checked={on} aria-label={label} className="settings-switch-button" onClick={onClick}>
+      <Switch on={on} />
+    </button>
   );
 }
 
-function YtDlpPanel() {
+// the downloader's version, with ways to update, repair or pin it.
+export function YtDlp() {
   const [info, setInfo] = useState(null);
   const [versions, setVersions] = useState([]);
   const [loadingInfo, setLoadingInfo] = useState(true);
@@ -102,14 +106,12 @@ function YtDlpPanel() {
       : info?.checkedAt ? `Checked for updates ${timeAgo(info.checkedAt)}.` : 'Not checked for updates yet.';
 
   return (
-    <div className="advanced-panel">
-      <div className="advanced-panel-heading">
-        <div>
-          <span className="advanced-panel-title">YT-DLP</span>
-          <span className="advanced-panel-desc">The downloader Downstream uses for searching and downloading.</span>
-        </div>
+    <div className="settings-row settings-row-block" data-setting="ytdlp">
+      <span className="settings-slider-head">
+        <span className="settings-row-label">yt-dlp</span>
         <span className="advanced-panel-badge">{versionLabel}</span>
-      </div>
+      </span>
+      <span className="settings-row-desc">What Downstream searches and downloads with.</span>
       {info && (
         <div className="advanced-panel-status">
           <span>{targetLabel}. {sourceLabel}</span>
@@ -123,14 +125,6 @@ function YtDlpPanel() {
             {busy === 'check' ? 'Checking...' : 'Check for updates'}
           </button>
         )}
-        <button className="advanced-action-button" onClick={fetchVersions} disabled={loadingVersions || locked}>
-          {loadingVersions ? 'Fetching versions...' : 'Fetch available versions'}
-        </button>
-        {info && !info.automatic && (
-          <button className="advanced-action-button advanced-action-button-muted" onClick={() => run('nightly', () => window.electronAPI.setYtDlpVersion('nightly'), 'Could not change the yt-dlp version.')} disabled={locked}>
-            {busy === 'nightly' ? 'Restoring automatic updates...' : 'Use automatic nightly updates'}
-          </button>
-        )}
         <button
           className="advanced-action-button advanced-action-button-muted"
           onClick={() => run('repair', window.electronAPI.repairYtDlp, 'Could not repair yt-dlp.')}
@@ -139,6 +133,14 @@ function YtDlpPanel() {
         >
           {busy === 'repair' ? 'Repairing...' : 'Repair'}
         </button>
+        <button className="advanced-action-button advanced-action-button-muted" onClick={fetchVersions} disabled={loadingVersions || locked}>
+          {loadingVersions ? 'Fetching versions...' : 'Choose a version...'}
+        </button>
+        {info && !info.automatic && (
+          <button className="advanced-action-button advanced-action-button-muted" onClick={() => run('nightly', () => window.electronAPI.setYtDlpVersion('nightly'), 'Could not change the yt-dlp version.')} disabled={locked}>
+            {busy === 'nightly' ? 'Restoring automatic updates...' : 'Use automatic nightly updates'}
+          </button>
+        )}
       </div>
 
       {error && <p className="advanced-panel-error">{error}</p>}
@@ -167,40 +169,15 @@ function YtDlpPanel() {
   );
 }
 
-function DownloadsPanel() {
-  const fastPacing = useAppStore((s) => s.fastDownloadPacing);
-  const setFastPacing = useAppStore((s) => s.setFastDownloadPacing);
-
-  return (
-    <div className="advanced-panel">
-      <div className="advanced-panel-heading">
-        <div>
-          <span className="advanced-panel-title">Downloads</span>
-          <span className="advanced-panel-desc">How the downloader works through a queue.</span>
-        </div>
-      </div>
-      <div className="advanced-row">
-        <div>
-          <span className="advanced-row-label">Shorter pauses between downloads</span>
-          <span className="advanced-row-desc">Waits 1 second between downloads instead of 3, and skips the longer break after every 5. YouTube is more likely to slow down or block downloads that start back to back.</span>
-        </div>
-        <Switch on={fastPacing} onClick={() => setFastPacing(!fastPacing)} />
-      </div>
-    </div>
-  );
-}
-
-function AppPanel() {
-  const setOptionsOpen = useAppStore((s) => s.setOptionsOpen);
-  const setDebugConsoleOpen = useAppStore((s) => s.setDebugConsoleOpen);
+// drawing with the graphics card, which takes a restart to change.
+export function Graphics() {
   const [settings, setSettings] = useState(null);
-  const [cleanup, setCleanup] = useState(null);
-  const [cleaning, setCleaning] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
     window.electronAPI.getAppSettings().then(setSettings).catch(() => {});
   }, []);
+
+  if (!settings) return null;
 
   const toggleHardwareAcceleration = async () => {
     setSettings(await window.electronAPI.setHardwareAcceleration(!settings.hardwareAcceleration));
@@ -209,6 +186,38 @@ function AppPanel() {
   const toggleDedicatedGpu = async () => {
     setSettings(await window.electronAPI.setDedicatedGpu(!settings.dedicatedGpu));
   };
+
+  const accelerationRestart = settings.hardwareAcceleration !== settings.hardwareAccelerationActive;
+  const gpuRestart = settings.dedicatedGpu !== settings.dedicatedGpuActive;
+  const restart = <span className="advanced-row-result"> Restart Downstream to apply this.</span>;
+
+  return (
+    <Group title="Graphics">
+      <Rows>
+        <Row id="hardwareAcceleration" label="Hardware acceleration" desc={<>Draws the app with the graphics card. Turn it off if the window flickers, goes black or crashes on an older computer.{accelerationRestart && restart}</>}>
+          {accelerationRestart && <button className="advanced-action-button" onClick={() => window.electronAPI.restartApp()}>Restart now</button>}
+          <SwitchButton on={settings.hardwareAcceleration} label="Hardware acceleration" onClick={toggleHardwareAcceleration} />
+        </Row>
+        {settings.hasDedicatedGpu && (
+          <Row id="dedicatedGpu" label="Dedicated graphics" desc={<>Keeps the blur smooth on this Mac's dedicated graphics card, using more battery while Downstream is open.{gpuRestart && restart}</>}>
+            {gpuRestart && <button className="advanced-action-button" onClick={() => window.electronAPI.restartApp()}>Restart now</button>}
+            <SwitchButton on={settings.dedicatedGpu} label="Dedicated graphics" onClick={toggleDedicatedGpu} />
+          </Row>
+        )}
+      </Rows>
+    </Group>
+  );
+}
+
+export default function AdvancedPage() {
+  const closeSettings = useAppStore((s) => s.closeSettings);
+  const setDebugConsoleOpen = useAppStore((s) => s.setDebugConsoleOpen);
+  const homeStarfield = useAppStore((s) => s.homeStarfield);
+  const homeOriginal = useAppStore((s) => s.homeOriginal);
+  const setSetting = useAppStore((s) => s.setSetting);
+  const [cleanup, setCleanup] = useState(null);
+  const [cleaning, setCleaning] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const cleanTempFiles = async () => {
     setCleaning(true);
@@ -225,113 +234,55 @@ function AppPanel() {
     window.location.reload();
   };
 
-  const accelerationRestart = settings && settings.hardwareAcceleration !== settings.hardwareAccelerationActive;
-  const gpuRestart = settings && settings.dedicatedGpu !== settings.dedicatedGpuActive;
-
-  return (
-    <div className="advanced-panel">
-      <div className="advanced-panel-heading">
-        <div>
-          <span className="advanced-panel-title">App</span>
-          <span className="advanced-panel-desc">Troubleshooting and maintenance.</span>
-        </div>
-      </div>
-
-      {settings && (
-        <div className="advanced-row">
-          <div>
-            <span className="advanced-row-label">Hardware acceleration</span>
-            <span className="advanced-row-desc">
-              Uses the graphics card to draw the app. Turn it off if the window flickers, goes black, or crashes on an older computer.
-              {accelerationRestart && <span className="advanced-row-result"> Restart Downstream to apply this.</span>}
-            </span>
-          </div>
-          <div className="advanced-row-controls">
-            {accelerationRestart && (
-              <button className="advanced-action-button" onClick={() => window.electronAPI.restartApp()}>Restart now</button>
-            )}
-            <Switch on={settings.hardwareAcceleration} onClick={toggleHardwareAcceleration} />
-          </div>
-        </div>
-      )}
-
-      {settings?.hasDedicatedGpu && (
-        <div className="advanced-row">
-          <div>
-            <span className="advanced-row-label">Dedicated graphics</span>
-            <span className="advanced-row-desc">
-              Draws Downstream on this Mac's dedicated graphics card, which keeps the blur effects smooth. It uses more battery while Downstream is open, so turn it off to stay on the built-in graphics.
-              {gpuRestart && <span className="advanced-row-result"> Restart Downstream to apply this.</span>}
-            </span>
-          </div>
-          <div className="advanced-row-controls">
-            {gpuRestart && (
-              <button className="advanced-action-button" onClick={() => window.electronAPI.restartApp()}>Restart now</button>
-            )}
-            <Switch on={settings.dedicatedGpu} onClick={toggleDedicatedGpu} />
-          </div>
-        </div>
-      )}
-
-      <div className="advanced-row">
-        <div>
-          <span className="advanced-row-label">Debugging outlog</span>
-          <span className="advanced-row-desc">Shows what Downstream is doing behind the scenes, useful when reporting a problem.</span>
-        </div>
-        <button className="advanced-action-button advanced-action-button-muted" onClick={() => { setOptionsOpen(false); setDebugConsoleOpen(true); }}>Open</button>
-      </div>
-
-      <div className="advanced-row">
-        <div>
-          <span className="advanced-row-label">App data folder</span>
-          <span className="advanced-row-desc">Where Downstream keeps its settings and downloaded yt-dlp versions.</span>
-        </div>
-        <button className="advanced-action-button advanced-action-button-muted" onClick={() => window.electronAPI.openAppData()}>Show</button>
-      </div>
-
-      <div className="advanced-row">
-        <div>
-          <span className="advanced-row-label">Temporary files</span>
-          <span className="advanced-row-desc">
-            Removes leftover files the downloader can leave behind when a download is stopped.
-            {cleanup && <span className="advanced-row-result"> {cleanup}</span>}
-          </span>
-        </div>
-        <button className="advanced-action-button advanced-action-button-muted" onClick={cleanTempFiles} disabled={cleaning}>
-          {cleaning ? 'Cleaning...' : 'Clean up'}
-        </button>
-      </div>
-
-      <div className="advanced-row">
-        <div>
-          <span className="advanced-row-label">Reset settings</span>
-          <span className="advanced-row-desc">
-            {confirmReset
-              ? 'Every preference goes back to its default and the app reloads.'
-              : 'Puts every preference back to its default. Saved music folders, custom EQ presets and loudness measurements are kept.'}
-          </span>
-        </div>
-        <div className="advanced-row-controls">
-          {confirmReset ? (
-            <>
-              <button className="advanced-action-button advanced-action-button-muted" onClick={() => setConfirmReset(false)}>Cancel</button>
-              <button className="advanced-action-button advanced-action-button-danger" onClick={resetSettings}>Yes, reset</button>
-            </>
-          ) : (
-            <button className="advanced-action-button advanced-action-button-danger" onClick={() => setConfirmReset(true)}>Reset</button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function AdvancedOptions() {
   return (
     <>
-      <YtDlpPanel />
-      <DownloadsPanel />
-      <AppPanel />
+      <p className="settings-page-note">For when something isn't working right.</p>
+
+      <Group title="Troubleshooting">
+        <Rows>
+          <Row id="debugLog" label="Debugging outlog" desc="What Downstream is doing behind the scenes, useful when reporting a problem.">
+            <button className="advanced-action-button advanced-action-button-muted" onClick={() => { closeSettings(); setDebugConsoleOpen(true); }}>Open</button>
+          </Row>
+          <Row id="appData" label="App data folder" desc="Where Downstream keeps its settings and downloaded yt-dlp versions.">
+            <button className="advanced-action-button advanced-action-button-muted" onClick={() => window.electronAPI.openAppData()}>Show</button>
+          </Row>
+          <Row id="tempFiles" label="Temporary files" desc={<>Leftovers the downloader can leave behind when a download is stopped.{cleanup && <span className="advanced-row-result"> {cleanup}</span>}</>}>
+            <button className="advanced-action-button advanced-action-button-muted" onClick={cleanTempFiles} disabled={cleaning}>{cleaning ? 'Cleaning...' : 'Clean up'}</button>
+          </Row>
+        </Rows>
+      </Group>
+
+      <Group title="Extras">
+        <Rows>
+          <Row label="Allow Voyager starfield on main menu playback" desc="Leave the main menu be for a while with media playing, and see what turns up.">
+            <SwitchButton on={homeStarfield} label="Allow Voyager starfield on main menu playback" onClick={() => setSetting('homeStarfield', !homeStarfield)} />
+          </Row>
+          <Row id="homeOriginal" label="Original home screen" desc="The earlier look, with Downloader, Media Player and Settings as cards in a panel.">
+            <SwitchButton on={homeOriginal} label="Original home screen" onClick={() => setSetting('homeOriginal', !homeOriginal)} />
+          </Row>
+        </Rows>
+      </Group>
+
+      <Group title="Reset">
+        <Rows>
+          <Row
+            id="resetAll"
+            label="Reset all settings"
+            desc={confirmReset
+              ? 'Every setting on both sides goes back to the original and the app reloads.'
+              : 'Puts every setting back to the original. Media folders, mixtapes, custom EQ presets and loudness measurements are kept.'}
+          >
+            {confirmReset ? (
+              <>
+                <button className="advanced-action-button advanced-action-button-muted" onClick={() => setConfirmReset(false)}>Cancel</button>
+                <button className="advanced-action-button advanced-action-button-danger" onClick={resetSettings}>Yes, reset</button>
+              </>
+            ) : (
+              <button className="advanced-action-button advanced-action-button-danger" onClick={() => setConfirmReset(true)}>Reset</button>
+            )}
+          </Row>
+        </Rows>
+      </Group>
     </>
   );
 }

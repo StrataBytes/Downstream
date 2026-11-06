@@ -1,14 +1,14 @@
 import { useEffect } from 'react';
 import useAppStore from '../stores/useAppStore';
 
-const SEEK_STEP = 5;      // seconds, per ArrowLeft/ArrowRight press
 const VOLUME_STEP = 0.05; // 0-1 scale, per ArrowUp/ArrowDown press
 
 // text fields and range inputs (eq bands, the volume slider itself) get their native key behavior instead of being hijacked, which also covers shift+arrow text selection while typing.
+// the settings sliders take their arrow keys the same way.
 function isTypingContext(el) {
   if (!el) return false;
   const tag = el.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable || el.getAttribute?.('role') === 'slider';
 }
 
 // a deliberately keyboard-focused button/link should still activate on space like normal (e.g. tab to "got it!" and press space).
@@ -44,7 +44,7 @@ export function useMediaKeybinds() {
             useAppStore.getState().playPrevTrack();
           } else {
             const audio = musicAudioRef?.current;
-            if (audio) audio.currentTime = Math.max(0, audio.currentTime - SEEK_STEP);
+            if (audio) audio.currentTime = Math.max(0, audio.currentTime - useAppStore.getState().seekStep);
           }
           break;
 
@@ -55,8 +55,9 @@ export function useMediaKeybinds() {
           } else {
             const audio = musicAudioRef?.current;
             if (audio) {
-              const duration = Number.isFinite(audio.duration) ? audio.duration : audio.currentTime + SEEK_STEP;
-              audio.currentTime = Math.min(duration, audio.currentTime + SEEK_STEP);
+              const step = useAppStore.getState().seekStep;
+              const duration = Number.isFinite(audio.duration) ? audio.duration : audio.currentTime + step;
+              audio.currentTime = Math.min(duration, audio.currentTime + step);
             }
           }
           break;

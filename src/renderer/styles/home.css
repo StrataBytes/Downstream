@@ -69,7 +69,7 @@
   align-items: center;
   gap: 28px;
   padding: 48px;
-  background: rgba(15,25,35,0.82);
+  background: rgba(15,25,35,var(--panel-alpha, 0.82));
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 16px;
   backdrop-filter: blur(12px);
@@ -291,4 +291,198 @@
 }
 .binary-banner-icon {
   color: #ff6b6b;
+}
+
+/* === ambient home === */
+/* no panel: a large wordmark and a short list low on the left, the song playing large on the right, and the time in the corner, over the background. */
+
+.layout.home-ambient {
+  display: block;
+  padding: 0;
+}
+
+.ambient-menu {
+  position: absolute;
+  left: 64px;
+  bottom: 72px;
+  width: 360px;
+  transition: opacity 0.75s ease, transform 0.75s ease;
+}
+/* left alone with music playing, the list fades and the song and the time stay. */
+.home-ambient-idle .ambient-menu {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+
+.ambient-title {
+  margin-bottom: 18px;
+  font-size: 3.4em;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: #4cd0c1;
+  text-shadow: 0 2px 24px rgba(0,0,0,0.35);
+}
+
+.ambient-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: -14px;
+}
+
+.ambient-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 11px 14px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(255,255,255,0.8);
+  font: inherit;
+  font-size: 1.15em;
+  font-weight: 500;
+  text-align: left;
+  text-shadow: 0 1px 12px rgba(0,0,0,0.3);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.ambient-item:hover,
+.ambient-item:focus-visible {
+  outline: none;
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+}
+.ambient-item-icon {
+  flex-shrink: 0;
+  color: #4cd0c1;
+}
+.ambient-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ambient-item-text small {
+  font-size: 0.64em;
+  font-weight: 400;
+  color: rgba(255,255,255,0.42);
+}
+.ambient-arrow {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: #4cd0c1;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+.ambient-item:hover .ambient-arrow,
+.ambient-item:focus-visible .ambient-arrow {
+  opacity: 1;
+  transform: none;
+}
+.ambient-item-quiet {
+  font-size: 0.95em;
+  color: rgba(255,255,255,0.55);
+}
+/* only as wide as its row, so lite mode's notice sits right beside it. */
+.ambient-settings {
+  position: relative;
+  align-self: flex-start;
+}
+.ambient-settings .ambient-item {
+  width: auto;
+  padding-right: 18px;
+}
+
+/* the song playing, large on the right, which goes back to the player. */
+.ambient-now {
+  position: absolute;
+  right: 50px;
+  bottom: 72px;
+  max-width: 42%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: right;
+  text-shadow: 0 1px 14px rgba(0,0,0,0.35);
+  cursor: pointer;
+  transition: background 0.2s;
+  animation: introFadeIn 0.6s ease both;
+}
+.ambient-now:hover,
+.ambient-now:focus-visible {
+  outline: none;
+  background: rgba(255,255,255,0.04);
+}
+.ambient-now-label {
+  font-size: 0.72em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(76,208,193,0.8);
+}
+.ambient-now-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 1.9em;
+  font-weight: 700;
+  line-height: 1.2;
+  color: rgba(255,255,255,0.92);
+}
+.ambient-now-source {
+  font-size: 0.9em;
+  color: rgba(255,255,255,0.45);
+}
+
+.ambient-clock {
+  position: absolute;
+  top: 44px;
+  right: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 0.95em;
+  letter-spacing: 0.04em;
+  color: rgba(255,255,255,0.45);
+  text-shadow: 0 1px 12px rgba(0,0,0,0.3);
+}
+.ambient-date {
+  font-size: 0.78em;
+  color: rgba(255,255,255,0.3);
+}
+
+/* starting up, the greeting sits where the wordmark will, with the progress under it. */
+.ambient-hello {
+  font-size: 2.6em;
+  font-weight: 300;
+  letter-spacing: 0.5px;
+  color: rgba(255,255,255,0.75);
+  animation: introFadeIn 0.6s ease both;
+}
+.ambient-intro-time {
+  margin-top: 6px;
+  font-size: 0.95em;
+  color: rgba(255,255,255,0.4);
+  animation: introFadeIn 0.6s ease 0.1s both;
+}
+.ambient-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 26px;
+  white-space: nowrap;
+  animation: introFadeIn 0.4s ease 0.15s both;
 }

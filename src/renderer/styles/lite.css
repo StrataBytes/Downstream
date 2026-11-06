@@ -1,14 +1,16 @@
 /* === disable blur === */
 
 body.lite-no-blur #background-layer {
-  filter: brightness(0.38) saturate(0.8) contrast(0.92);
+  filter: brightness(calc(var(--bg-brightness, 0.35) * 1.086)) saturate(0.8) contrast(0.92);
   transform: none;
 }
 
+/* the darkening stays above the background video even while it fades, since a fading video would otherwise be drawn over it and flash bright. */
 body.lite-no-blur #background-layer::before {
   content: '';
   position: absolute;
   inset: 0;
+  z-index: 1;
   background:
     linear-gradient(135deg, rgba(7, 12, 20, 0.82) 0%, rgba(8, 16, 28, 0.48) 45%, rgba(4, 7, 12, 0.84) 100%),
     radial-gradient(circle at 20% 20%, rgba(76, 208, 193, 0.08), transparent 38%);
@@ -23,6 +25,13 @@ body.lite-no-blur .home-idle-widget {
   -webkit-backdrop-filter: none;
   background: rgba(15, 25, 35, 0.95);
   box-shadow: none;
+}
+
+body.lite-no-blur .queue-widget-frosted::after {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: rgba(15, 25, 35, 0.72);
+  animation: none;
 }
 
 body.lite-no-blur .music-library {
@@ -69,12 +78,7 @@ body.lite-no-blur .guide-backdrop {
   background: rgba(0, 0, 0, 0.9);
 }
 
-body.lite-no-blur .behavior-backdrop {
-  backdrop-filter: none;
-  background: rgba(0, 0, 0, 0.9);
-}
-
-body.lite-no-blur .options-backdrop {
+body.lite-no-blur .settings-backdrop {
   backdrop-filter: none;
   background: rgba(0, 0, 0, 0.9);
 }
@@ -89,7 +93,7 @@ body.lite-no-blur .queue-ctx-menu {
   background: rgba(18, 18, 24, 0.98);
 }
 
-body.lite-no-blur .new-files-popup {
+body.lite-no-blur .new-media-toast {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   background: rgba(15, 25, 35, 0.95);
@@ -114,6 +118,11 @@ body.lite-no-anim .loading-spinner {
   animation-duration: 0.75s !important;
 }
 
+/* a setting found by search still lights up, so it's clear where it is. */
+body.lite-no-anim .settings-modal [data-flash] {
+  animation-duration: 1.6s !important;
+}
+
 /* the shimmer on progress bars shows they're still working, so it keeps moving. */
 body.lite-no-anim .shimmer-bar-fill {
   animation-duration: 1.8s !important;
@@ -129,9 +138,20 @@ body.lite-no-anim .song-progress-bar.song-progress-preparing::after {
 body.lite-no-anim .skeleton-loader {
   animation-duration: 1.5s !important;
 }
-body.lite-no-anim .norm-scan-toast::after,
-body.lite-no-anim .norm-stats-box.norm-stats-scanning::after {
+body.lite-no-anim .norm-scan-toast::after {
   animation-duration: 3.2s !important;
+}
+
+/* a seek just moves the background video, since a dim that's near instant reads as a blink. */
+body.lite-no-anim .background-video-seeking:not(.background-video-faded) {
+  opacity: 1;
+}
+
+/* looping motion that only decorates stands still, since squeezed to near-instant it would flicker between positions. */
+body.lite-no-anim .download-icon-busy .download-arrow,
+body.lite-no-anim .download-icon-busy .download-tray,
+body.lite-no-anim .queue-fetching {
+  animation: none;
 }
 
 /* marquee scrolling for overflowing titles (queue rows, mini-player, music player, the downloader's now playing) is functional, not decorative.

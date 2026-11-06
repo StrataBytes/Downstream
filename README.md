@@ -1,59 +1,56 @@
-# Downstream v2.4.1 (Late 2026)
+# Downstream v3.0.0 (Late 2026)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)  
 **Author:** Stratabytes
 
 ## Introduction
 
-**Downstream** is a cross-platform media toolkit built with Electron. It combines a YouTube downloader with a local music player, all in one desktop app while being very robust and customizable. It uses libraries like `FFmpeg` and `yt-dlp` for fast and reliable downloads.
+**Downstream** is a cross-platform media toolkit built with Electron. It combines a YouTube downloader with a local media player and library, all in one desktop app while being very robust and customizable. It uses libraries like `FFmpeg` and `yt-dlp` for fast and reliable downloads.
 > **note:** Downstream is a tool and the app is designed for legal use cases. Please respect copyright laws and platform terms of service when downloading media. You are solely responsible for appropriate usage (;
 
 
 ## Download
 
-Head to the [latest release](https://github.com/StrataBytes/Downstream/releases/latest)!
+Grab the one for your computer! Older versions are all on the [releases page](https://github.com/StrataBytes/Downstream/releases).
 
-...If your not sure what to click, look for the ending file extension, based on the table below:
+| Platform | Download |
+|----------|----------|
+| **Windows** <sub>10 & 11</sub> | [WIN_Downstream-3.0.0.Setup.exe](https://github.com/StrataBytes/Downstream/releases/download/3.0.0/WIN_Downstream-3.0.0.Setup.exe) |
+| **macOS** <sub>Catalina and above</sub> | [MAC_Downstream-3.0.0.dmg](https://github.com/StrataBytes/Downstream/releases/download/3.0.0/MAC_Downstream-3.0.0.dmg) |
+| **Legacy macOS** <sub>High Sierra & Mojave</sub> | [MAC-Legacy_Downstream-3.0.0.dmg](https://github.com/StrataBytes/Downstream/releases/download/3.0.0/MAC-Legacy_Downstream-3.0.0.dmg) |
+| **Linux** <sub>Ubuntu 26.04</sub> | [LINUX_Downstream-3.0.0.deb](https://github.com/StrataBytes/Downstream/releases/download/3.0.0/LINUX_Downstream-3.0.0.deb) |
 
-| Platform | File to download |
-|----------|-----------------|
-| **Windows** <sub>10 & 11</sub> | `WIN_Downstream-X.X.X.Setup`**.exe** |
-| **macOS** <sub>Catalina and above</sub> | `MAC_Downstream-X.X.X`**.dmg** |
-| **Legacy macOS** <sub>High Sierra & Mojave</sub> | `MAC-Legacy_Downstream-X.X.X`**.dmg** |
+On Linux, install it from the folder you downloaded it to with `sudo apt install ./LINUX_Downstream-3.0.0.deb`
+
+### Good to Know...
+- Windows 10 & 11 is Downstream's 'native' operating system.
+- macOS has been tested and developed quite thoroughly and is considered stable now, particularly on macOS Sequoia.
+- Legacy macOS is the same Downstream, just built to run on older Macs and it might trail the regular release by a version.
+- Linux is built and tested on Ubuntu 26.04. Older Ubuntu releases back to 22.04 should run it too, they just haven't been tested as heavily.
 
 
 ## Features
 
-- **Multi-Platform Support**: Downstream supports Windows and macOS. Linux is planned for the next future release.
-- **High-Speed Downloads**: Download from YouTube as MP4 or MP3, including full playlists and unlisted links.
-- **Music Player**: Built-in local music player with an EQ mixer, per-preset band customization, audio visualizer and volume normalization. A perfect background player.
-- **Lite Rendering Mode**: Automatically detected on first launch based on your hardware. If your pc or mac is not up to spec, Downstream reduces blur, animations and background effects for smoother performance on older machines.
-- **User-Friendly Interface**: Clean UI with smooth transitions, album art backgrounds and a scrolling track display.
-- **Straight to Folder**: Downloads go directly to your system Downloads folder, or can be changed to be elsewhere.
-- **Playlist / Radio Support**: Compatible with public YouTube playlist and radio links.
-- **Saved Folders**: Save and switch between multiple local music library folders.
-- **Auto-Update Checks**: Notifies you on the home screen when a new version is available.
-  
-### OS Compatibility Note...
-- Windows 10 & 11 is Downstream's 'native' operating system. 
-- MacOS compatibility has been only tested and developed on what I have available, being Ventura. 
-- Older Macs on High Sierra or Mojave can grab Downstream for legacy macOS. It's the same Downstream, just built to run there, and it might trail the regular release by a version.
-- When Linux support is added, you can expect greater support, because linux tends to 'just be able to run things' across multiple distros.
+#### The Downloader
+- **Search or Paste a Link**: Find videos right inside Downstream, including full playlists, radio and unlisted links.
+- **MP4 or MP3**: Pick the quality and format for one download, or for the whole queue at once.
+- **Save Where You Want**: Your Downloads folder, or straight into a Downstream folder the player picks up.
+- **Keeps Working**: Downstream updates yt-dlp in the background, so downloads carry on as YouTube changes.
 
+#### The Player
+- **Your Library**: Folders and mixtapes, with media you can add, move, delete and search without leaving the app.
+- **Sounds Right**: A 10-band EQ with presets, and even volume so nothing is suddenly loud or quiet.
+- **Looks Good**: Album art and video backgrounds, a visualizer, and three view modes, including Voyager, an ambient starfield. A perfect background player.
+- **Plays Nice With Your System**: Media keys and system controls on every platform, plus the Touch Bar on Macs that have one.
 
-...You can also follow the manual build steps below, if you wish to do so.
-
+#### Everywhere
+- **Make It Yours**: A full settings window, plus a built-in Guide that shows how everything works.
+- **Lite Mode**: Kicks in by itself on older hardware, cutting back blur and effects so everything stays smooth.
+- **Update Checks**: The home screen lets you know when a new version is out.
 
 
 ## Building Manually
 
-### Prerequisites
-
-To get started with Downstream, you'll need the following installed:
-
-- [Node.js](https://nodejs.org/) (LTS version recommended)
-- [Git](https://git-scm.com/)
-
-### Installation Steps
+You'll need [Node.js](https://nodejs.org/) (LTS version recommended) and [Git](https://git-scm.com/). On Linux, you'll also need `fakeroot` to build the `.deb` (`sudo apt install fakeroot`).
 
 1. Clone the repository and navigate to the project directory:
     ```bash
@@ -72,33 +69,42 @@ To get started with Downstream, you'll need the following installed:
     npm start
     ```
 
-4. To build the installer:
-    ```bash
-    npm run make
-    ```
-   You can also use the provided scripts in the root, `duild.sh` on macOS, `build.bat` on Windows. Output will be in `out/make/`.
+4. Build the installer with the script for your platform: `build.bat` on Windows, `duild-mac.sh` on macOS (`duild-mac-legacy.sh` for High Sierra & Mojave) or `duild-linux.sh` on Linux. Each installer is built on its own platform, and it lands in `out/make/` (`out-legacy/make/` for legacy macOS).
 
-
-
-
-
+More on how each platform is set up is in [referenceNotes/PLATFORM.md](referenceNotes/PLATFORM.md).
 
 
 ## Misc. Info
-#### Development Cycle
-Why does Downstream seem to skip version numbers? 
+
+<details>
+<summary><b>Why does Downstream seem to skip version numbers?</b></summary>
+
 > Well, whenever I am working on a new build for Downstream which adds features, I tend to slowly build, test and daily drive the new version until all of the glaring issues are worked out. At the end of it all, I've already bumped the version number serveral times before it was even public! 
 Patches and hotfixes are usually always insta-pushed as the latest version, as stability is the main goal of Downstream.
-#### Stance of Patching & Hotfixes
+</details>
+
+<details>
+<summary><b>Stance of patching & hotfixes</b></summary>
+
 > Youtube loves to break apps like these by making goofy changes to their platform! Im not 24/7 working on Downstream, so fixes might be a little slow if its not app-breakingly bad. 
-#### Broken Downloads Due to YT?
+</details>
+
+<details>
+<summary><b>Broken downloads due to YT?</b></summary>
+
 > When youtube breaks downloads, this usually takes a while to get fixed, but is high priority. While I might not be right away fixing it, you can probably expect the app to be running on its own again once yt-dlp pushes a new, working version which downstream automatically swaps with - you can also mess around in the advanced settings on the main menu's settings page.  (thanks a ton for the contributors of yt-dlp!)
-#### General Issues, App Bugs and Glitches?
+</details>
+
+<details>
+<summary><b>General issues, app bugs and glitches?</b></summary>
+
 > Because this is a passion project, most minor issues will not be quickly resolved. Only high severity problems will be patched with relative haste.
 > Additionally, cutting-edge hardware or OS changes are not included in stability priority. I dont plan on buying a new mac every 3 years, or upgrading to windows 12 right away.
+</details>
 
 ### Other Attributions
 > Thanks to @davidhurtado2000 for lending a hand on the v1 downloader prototype.
+> Generative Content: Downstream's current logo was built using OpenAI tools.
 
 ## License
 

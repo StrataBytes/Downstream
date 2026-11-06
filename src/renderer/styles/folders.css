@@ -3,7 +3,7 @@
 
 /* half again the usual widget, shrinking to fit smaller windows. */
 .primary-widget.primary-widget-folders {
-  width: min(630px, 100%);
+  width: min(820px, 100%);
   padding: 28px;
 }
 
@@ -75,17 +75,72 @@
   background: #4cd0c1;
 }
 
-.folders-tab-bumped {
-  animation: folderTabBump 0.7s ease;
+/* the list, with the drop label floating over it. */
+.folders-stage {
+  position: relative;
 }
 
-@keyframes folderTabBump {
-  0% { color: rgba(255,255,255,0.45); }
-  30% { color: #4cd0c1; background: rgba(76,208,193,0.16); }
-  100% { color: rgba(255,255,255,0.45); }
+/* what the list shows: the grid, or a folder or mixtape opened in its place. */
+.folders-view {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  animation: viewIn 0.18s ease;
+}
+@keyframes viewIn {
+  from { opacity: 0; }
+}
+/* an opened folder or mixtape grows out of the card it was opened from. */
+.folders-view-open {
+  transform-origin: var(--open-x, 50%) var(--open-y, 0);
+  animation: viewOpen 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes viewOpen {
+  from { opacity: 0; transform: scale(0.94); }
+}
+/* a page fills the list, so files can be dropped and ticks cleared anywhere in it. */
+.folders-page {
+  flex: 1;
+  border-radius: 10px;
+}
+
+/* inside a folder or mixtape, the way back sits where the other tab was, and the open one carries its name. */
+.search-tab.folders-crumb-back {
+  gap: 5px;
+  padding: 0 15px 0 11px;
+}
+.search-tab.folders-crumb-here {
+  min-width: 0;
+  max-width: 62%;
+  cursor: default;
+}
+.folders-crumb-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.folders-crumb-here .folders-name-input {
+  width: 220px;
+  font-size: 1em;
+}
+/* the open one's menu sits in its tab, right after its name. */
+.folders-crumbs .folder-card-more.folders-crumb-more {
+  position: static;
+  flex-shrink: 0;
+  opacity: 1;
+  margin: 0 -10px 0 -1px;
+}
+
+.folders-split {
+  display: flex;
+  gap: 12px;
+  min-height: 0;
 }
 
 .folders-body {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(255,255,255,0.1);
@@ -94,9 +149,10 @@
   overflow: hidden;
 }
 
+/* the same height on both tabs and inside a mixtape, so the panel holds still while moving between them.
+   in a short window it gives up height first, so the whole panel still fits. */
 .folders-list {
-  max-height: min(48vh, 400px);
-  min-height: 60px;
+  height: max(120px, min(46vh, 400px, calc(100vh - 320px)));
   overflow-y: auto;
   padding: 6px;
   transition: box-shadow 0.15s;
@@ -117,79 +173,13 @@
 .folders-section + .folders-section {
   margin-top: 2px;
 }
-.folders-section-over {
-  background: rgba(76,208,193,0.06);
-  box-shadow: inset 0 0 0 1px rgba(76,208,193,0.35);
-}
 
-.folders-divider {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 30px;
-  padding: 4px 6px;
-  color: rgba(255,255,255,0.55);
-  font-size: 0.72em;
-  font-weight: 600;
-  cursor: pointer;
-  user-select: none;
-  transition: color 0.15s;
-}
-.folders-divider:hover {
-  color: rgba(255,255,255,0.85);
-}
-.folders-divider-playing,
-.folders-divider-playing .folders-divider-count {
-  color: #4cd0c1;
-}
 
-.folders-chevron {
-  flex-shrink: 0;
-  transition: transform 0.15s;
-}
-.folders-chevron-closed {
-  transform: rotate(-90deg);
-}
-
-.folders-divider-name {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.folders-divider-count {
-  flex-shrink: 0;
-  color: rgba(255,255,255,0.3);
-  font-weight: 500;
-}
 .folders-divider-line {
   flex: 1;
   min-width: 12px;
   height: 1px;
   background: rgba(255,255,255,0.08);
-}
-
-.folders-divider-play {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 1px solid rgba(76,208,193,0.35);
-  background: transparent;
-  color: #4cd0c1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.folders-divider-play:hover:not(:disabled) {
-  background: #4cd0c1;
-  color: #0f1923;
-}
-.folders-divider-play:disabled {
-  opacity: 0.3;
-  cursor: default;
 }
 
 .folders-divider-btn {
@@ -209,9 +199,30 @@
   color: #4cd0c1;
 }
 
+/* === group headings === */
+
+.folders-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 6px 4px;
+  color: rgba(255,255,255,0.45);
+  font-size: 0.68em;
+  font-weight: 600;
+}
+.folders-heading-count {
+  color: rgba(255,255,255,0.25);
+  font-weight: 500;
+}
+.folders-section + .folders-section .folders-heading {
+  padding-top: 10px;
+}
+
 /* === cards === */
 
+/* cards measure their places from the grid, so it slides them the same wherever the list is scrolled. */
 .folders-grid {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 8px;
@@ -242,6 +253,25 @@
   border-color: rgba(76,208,193,0.35);
   background: rgba(76,208,193,0.06);
 }
+.folder-card-selected,
+.folder-card-selected:hover {
+  border-color: rgba(76,208,193,0.55);
+  background: rgba(76,208,193,0.08);
+}
+/* folders from elsewhere sit a little quieter than the ones in downstream. */
+.folder-card-external {
+  background: transparent;
+}
+.folder-card-external .folder-card-name {
+  color: rgba(255,255,255,0.7);
+}
+/* folders waiting in recently deleted, faded until one is picked. */
+.folder-card-deleted:not(.folder-card-selected) {
+  opacity: 0.55;
+}
+.folders-deleted .folders-divider-btn {
+  font-size: 1em;
+}
 .folder-card-playing,
 .folder-card-playing:hover {
   border-color: rgba(76,208,193,0.5);
@@ -261,20 +291,6 @@
   from { background: rgba(76,208,193,0.22); }
   to { background: rgba(255,255,255,0.03); }
 }
-
-/* the line where a dragged folder will land. */
-.folder-card-drop-before::before,
-.folder-card-drop-after::after {
-  content: '';
-  position: absolute;
-  top: 10px;
-  bottom: 10px;
-  width: 2px;
-  border-radius: 1px;
-  background: #4cd0c1;
-}
-.folder-card-drop-before::before { left: -5px; }
-.folder-card-drop-after::after { right: -5px; }
 
 .folder-card-empty,
 .folder-card-empty:hover {
@@ -307,6 +323,44 @@
   object-fit: cover;
   display: block;
 }
+/* a mixtape's cover, a frosted square of its folders' covers in a three by three grid, like a folder in launchpad. */
+.folder-mosaic {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.08);
+}
+.folder-mosaic > img,
+.folder-mosaic-tint {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+  border-radius: 3px;
+}
+.folder-mosaic-tint {
+  display: block;
+  background: color-mix(in srgb, var(--folder-color, rgba(255,255,255,0.5)) 35%, transparent);
+}
+/* an empty one shows the tape glyph in the middle instead. */
+.folder-mosaic:has(> svg) {
+  display: flex;
+}
+.folder-cover-small {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+.folder-mosaic.folder-cover-small {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 2px;
+  padding: 3px;
+}
+
 .folder-cover-tinted {
   background: color-mix(in srgb, var(--folder-color) 20%, transparent);
   color: var(--folder-color);
@@ -332,6 +386,17 @@
 }
 .folder-card-live {
   color: #4cd0c1;
+}
+
+/* how much of a folder being imported has been copied, along the card's bottom edge. */
+.folder-card-progress {
+  position: absolute;
+  left: 10px;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 1px;
+  background: #4cd0c1;
+  transition: width 0.2s ease;
 }
 
 .folder-card-pin {
@@ -360,17 +425,12 @@
 }
 .folder-card:hover .folder-card-more,
 .folder-card:focus-visible .folder-card-more,
-.folder-card-more:focus-visible,
-.folders-divider:hover .folders-divider-more {
+.folder-card-more:focus-visible {
   opacity: 1;
 }
 .folder-card-more:hover {
   background: rgba(255,255,255,0.08);
   color: #fff;
-}
-.folders-divider-more {
-  position: static;
-  flex-shrink: 0;
 }
 
 .folders-name-input {
@@ -385,40 +445,6 @@
   font-size: 0.72em;
   text-align: center;
   outline: none;
-}
-.folders-divider .folders-name-input {
-  width: auto;
-  max-width: 180px;
-  font-size: 1em;
-  text-align: left;
-}
-
-/* === drop tiles === */
-/* stand in for the footer while dragging a folder, for starting a mixtape or adding to the temporary one. */
-
-.folders-footer.folders-dropbar {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-}
-
-.folders-drop-tile {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 31px;
-  padding: 0 8px;
-  border: 1.5px dashed rgba(76,208,193,0.4);
-  border-radius: 10px;
-  color: #4cd0c1;
-  font-size: 0.72em;
-  font-weight: 600;
-  transition: background 0.15s, border-color 0.15s;
-}
-.folders-drop-tile-over {
-  border-style: solid;
-  border-color: #4cd0c1;
-  background: rgba(76,208,193,0.14);
 }
 
 .folders-empty {
@@ -437,22 +463,6 @@
 .folders-empty-hint {
   font-size: 0.86em;
   color: rgba(255,255,255,0.28);
-}
-
-/* with no mixtapes yet, the whole empty tab takes a dragged folder and starts one. */
-.folders-empty-drop {
-  margin: 4px;
-  border: 1.5px dashed transparent;
-  border-radius: 12px;
-  transition: border-color 0.15s, background 0.15s;
-}
-.folders-list:has(.folder-card-dragging) .folders-empty-drop,
-.folders-empty-drop-over {
-  border-color: rgba(76,208,193,0.4);
-}
-.folders-empty-drop-over {
-  background: rgba(76,208,193,0.08);
-  color: #4cd0c1;
 }
 
 /* === footer === */
@@ -584,6 +594,31 @@
   color: rgba(255,255,255,0.7);
 }
 
+/* a small heading over a group of menu items. */
+.folders-menu-title {
+  padding: 6px 12px 3px;
+  font-size: 0.66em;
+  font-weight: 600;
+  color: rgba(255,255,255,0.35);
+}
+
+/* a confirmation's explanation, and the button that confirms it. */
+.folders-menu-text {
+  margin: 0;
+  padding: 6px 12px 8px;
+  font-size: 0.74em;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.5);
+}
+.folders-menu .folders-menu-confirm {
+  justify-content: center;
+  color: #ff6b6b;
+  font-weight: 600;
+}
+
+.folders-menu .folders-menu-danger {
+  color: rgba(255,120,110,0.9);
+}
 .folders-menu-danger:hover {
   background: rgba(231,76,60,0.14);
   color: #ff6b6b;
@@ -608,6 +643,33 @@
 .folder-toast svg {
   flex-shrink: 0;
   color: rgba(255,180,60,0.7);
+}
+
+.folder-toast-done {
+  border-color: rgba(76,208,193,0.3);
+  background: rgba(76,208,193,0.08);
+  color: rgba(160,235,225,0.9);
+}
+.folder-toast-done svg {
+  color: #4cd0c1;
+}
+.folder-toast span {
+  flex: 1;
+}
+.folder-toast-undo {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border: 1px solid rgba(76,208,193,0.4);
+  border-radius: 999px;
+  background: transparent;
+  color: #4cd0c1;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.folder-toast-undo:hover {
+  background: rgba(76,208,193,0.14);
 }
 
 @keyframes toastSlideIn {
@@ -650,4 +712,473 @@
 
 .folders-footer-count .search-footer-clear {
   margin-left: 8px;
+}
+
+/* === info === */
+/* beside the grid, about the selected folder or mixtape, or the library when nothing is selected. */
+
+/* sized by the grid beside it rather than by what it holds, which scrolls when the window is short. */
+.folder-info {
+  width: 210px;
+  flex-shrink: 0;
+  contain: size;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  background: rgba(10,18,26,0.6);
+  overflow-y: auto;
+}
+
+.folder-info-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.folder-info-head .folder-cover {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 6px;
+  border-radius: 12px;
+}
+.folder-info-name {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 0.86em;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  word-break: break-word;
+}
+.folder-info-where {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 0.66em;
+  color: rgba(255,255,255,0.4);
+  word-break: break-all;
+}
+
+.search-add.folder-info-play,
+.folders-footer-btn.folder-info-play {
+  justify-content: center;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.76em;
+}
+
+.folder-info-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+}
+.folder-info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.7em;
+}
+.folder-info-row dt {
+  flex-shrink: 0;
+  color: rgba(255,255,255,0.4);
+}
+.folder-info-row dd {
+  min-width: 0;
+  margin: 0;
+  color: rgba(255,255,255,0.78);
+  text-align: right;
+  word-break: break-word;
+}
+
+.folder-info-note {
+  margin: 0;
+  font-size: 0.68em;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.4);
+}
+
+/* === drag zones === */
+/* while a folder is dragged, places around the panel to drop it, quieter than the panel, which stays the focus.
+   each sits on a matte slate plate with a fine grain, which turns teal around the dragged folder as it comes near. */
+
+.folders-zone {
+  position: fixed;
+  z-index: 400;
+  padding: 7px;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 18px;
+  background-color: rgb(36,47,58);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(circle 140px at var(--near-x, -999px) var(--near-y, -999px), rgba(76,208,193,0.3), rgba(76,208,193,0));
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  animation: zoneIn 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.folders-zone-inner {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  background: rgba(15,25,35,0.9);
+}
+
+.folders-zone-side {
+  transform: translateY(-50%);
+  --from: 8px 0;
+}
+.folders-zone-side .folders-zone-inner {
+  flex-direction: column;
+  width: 132px;
+}
+.folders-zone-below {
+  transform: translateX(-50%);
+  --from: 0 -8px;
+}
+.folders-zone-below .folders-zone-inner {
+  align-items: stretch;
+  overflow-x: auto;
+}
+/* a zone that had to come in over the panel has a shadow to lift it off. */
+.folders-zone.folders-zone-inside {
+  box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+}
+
+/* each slides a little out from the panel's side as it appears. */
+@keyframes zoneIn {
+  from { opacity: 0; translate: var(--from); }
+}
+
+.folders-zone-target {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 84px;
+  max-width: 120px;
+  padding: 10px 8px;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 9px;
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.55);
+  font-size: 0.66em;
+  text-align: center;
+  transition: border-color 0.12s, background 0.12s, color 0.12s, box-shadow 0.2s;
+}
+.folders-zone-side .folders-zone-target {
+  max-width: none;
+  min-height: 74px;
+}
+/* the mixtape row is a line of small tiles, with each name beside its cover. */
+.folders-zone-below .folders-zone-target {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 8px;
+  min-width: 0;
+  max-width: 170px;
+  padding: 4px 12px 4px 4px;
+}
+.folders-zone-target > * {
+  pointer-events: none;
+}
+.folders-zone-target-over {
+  border-color: rgba(76,208,193,0.55);
+  background: rgba(76,208,193,0.1);
+  box-shadow: inset 0 0 14px rgba(76,208,193,0.18);
+  color: #4cd0c1;
+}
+.folders-zone-target[data-danger].folders-zone-target-over {
+  border-color: rgba(231,76,60,0.55);
+  background: rgba(231,76,60,0.12);
+  box-shadow: inset 0 0 14px rgba(231,76,60,0.18);
+  color: #ff6b6b;
+}
+.folders-zone-target-off {
+  opacity: 0.4;
+}
+
+.folders-zone-tape-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.05);
+}
+.folders-zone-name {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* mixtapes that already have the folder, set apart at the end of the row. */
+.folders-zone-already {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255,255,255,0.08);
+}
+.folders-zone-label {
+  align-self: center;
+  font-size: 0.62em;
+  color: rgba(255,255,255,0.35);
+  white-space: nowrap;
+}
+
+/* === save picker === */
+/* takes the downloader's widget over like search does, beside the queue. */
+
+.primary-widget.primary-widget-save {
+  --queue-space: 0px;
+  width: min(720px, calc(100% - var(--queue-space)));
+  margin-right: var(--queue-space);
+  padding: 22px;
+}
+.primary-widget-save.primary-widget-beside-queue {
+  --queue-space: 308px;
+}
+
+.save-picker {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  outline: none;
+}
+
+.save-picker-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 4px;
+}
+.save-picker-head h2 {
+  margin: 0;
+  font-size: 1em;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+}
+
+/* grows with the folders there are, up to the most a window of its size can hold. */
+.folders-list.save-picker-list {
+  height: auto;
+  max-height: max(140px, min(46vh, 380px, calc(100vh - 300px)));
+}
+
+.save-picker-downloads .folder-cover {
+  background: rgba(76,208,193,0.12);
+  color: #4cd0c1;
+}
+
+.search-footer-clear.save-picker-elsewhere {
+  margin-left: 0;
+}
+
+.folders-footer-btn.folder-info-danger:hover {
+  border-color: rgba(231,76,60,0.5);
+  color: #ff6b6b;
+}
+
+/* === a folder's media === */
+/* the downloader search's tick rows, a little tighter, so more songs show at once. */
+
+.folders-songs {
+  display: flex;
+  flex-direction: column;
+}
+
+/* the search styles load after these, so the row's own rules are made a little stronger. */
+.search-row.folders-song-row {
+  gap: 10px;
+  padding: 6px 8px 6px 10px;
+  border-radius: 9px;
+  animation: none;
+  outline: none;
+}
+.folders-song-row:focus-visible {
+  border-color: rgba(76,208,193,0.35);
+}
+.folders-song-row .search-row-check {
+  width: 18px;
+  height: 18px;
+}
+/* the tick circles stay out of the way until a row is hovered, or something is picked. */
+.folders-songs:not(.folders-songs-picking) .folders-song-row:not(:hover):not(:focus-visible):not(.search-row-picked) .search-row-check {
+  opacity: 0;
+}
+.folders-song-row .search-row-info {
+  gap: 1px;
+}
+.folders-song-row .search-row-title {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.8em;
+}
+.folders-song-row .search-row-meta {
+  font-size: 0.66em;
+}
+.folders-song-row .folder-cover {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+.folders-song-row .folder-cover svg {
+  width: 14px;
+  height: 14px;
+}
+.folders-song-length {
+  flex-shrink: 0;
+  min-width: 34px;
+  font-size: 0.7em;
+  color: rgba(255,255,255,0.4);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.folders-song-row .folder-card-more {
+  position: static;
+  flex-shrink: 0;
+}
+.folders-song-row:hover .folder-card-more,
+.folders-song-row:focus-visible .folder-card-more {
+  opacity: 1;
+}
+.folders-song-playing .search-row-title,
+.folders-song-playing .folders-song-length {
+  color: #4cd0c1;
+}
+.folders-song-dragging {
+  opacity: 0.3;
+}
+
+/* files from finder or file explorer held over a folder, which takes them on drop. */
+.folders-drop-over,
+.folder-card.folder-card-drop {
+  outline: 2px dashed rgba(76,208,193,0.7);
+  outline-offset: -4px;
+  background: rgba(76,208,193,0.07);
+}
+.folders-drop-label {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  z-index: 3;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #4cd0c1;
+  color: #0f1923;
+  font-size: 0.74em;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  pointer-events: none;
+  animation: toastSlideIn 0.2s ease;
+}
+
+/* media being dragged, which the system draws under the pointer from this pill. */
+.songs-carry {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 240px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(76,208,193,0.45);
+  background: rgba(20,32,44,0.96);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.songs-carry-image {
+  position: fixed;
+  top: -100px;
+  left: 0;
+}
+
+/* menus listing folders show each one's cover beside its name. */
+.folders-menu .folders-menu-folder {
+  justify-content: flex-start;
+  gap: 9px;
+}
+.folders-menu .folders-menu-folder .folder-cover {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+}
+.folders-menu .folders-menu-folder .folder-cover svg {
+  width: 12px;
+  height: 12px;
+  opacity: 1;
+}
+.folders-menu-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.folders-menu .folders-menu-folder .folders-menu-note {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.folders-menu-scroll {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* there can be many folders to move media to, so they wrap onto more rows instead of running off the plate, which can't be scrolled mid-drag. */
+.folders-zone-below.folders-zone-media .folders-zone-inner {
+  flex-wrap: wrap;
+  justify-content: center;
+  max-height: 168px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.folders-zone-media .folders-zone-already {
+  flex-wrap: wrap;
+}
+
+/* the folders media can be dropped on show their own covers, the size of a mixtape's. */
+.folders-zone-below .folders-zone-target > .folder-cover:not(.folder-mosaic) {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+.folders-zone-below .folders-zone-target > .folder-cover svg {
+  width: 14px;
+  height: 14px;
+}
+/* a long name ends in an ellipsis inside its tile rather than running out of it. */
+.folders-zone-below .folders-zone-name {
+  min-width: 0;
+}
+
+.folders-footer-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
 }

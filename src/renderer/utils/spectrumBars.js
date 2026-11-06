@@ -179,3 +179,39 @@ export function createBarReader(analyser, bars, { legacy = false } = {}) {
 
   return { read };
 }
+
+// bars drawn at each detail level.
+export const DETAIL_BARS = { standard: STANDARD_BARS, high: 120, ultra: 160 };
+export const BAR_GAP = 2;
+// the height setting lifts the analyser's readings as if the music were louder, but eases off below this, so near silence stays still.
+export const LIFT_FLOOR = 24;
+
+// a frame of readings lifted by some decibels, written into out.
+export function liftReadings(data, out, lift, perDb) {
+  const by = lift * perDb;
+  for (let i = 0; i < data.length; i++) {
+    const v = data[i];
+    out[i] = Math.min(255, Math.max(0, v + by * Math.min(1, v / LIFT_FLOOR)));
+  }
+  return out;
+}
+
+// draws every bar from its height, the visualizer's way.
+export function paintBars(ctx, heights, w, h, brightness) {
+  const bars = heights.length;
+  const barW = (w - BAR_GAP * (bars - 1)) / bars;
+  for (let i = 0; i < bars; i++) {
+    const val = heights[i];
+    const barH = val * h;
+
+    const x = i * (barW + BAR_GAP);
+    const y = h - barH;
+
+    const hue = 170 + (i / bars) * 20;
+    const alpha = Math.min(1, (0.1 + val * 0.5) * brightness);
+    ctx.fillStyle = `hsla(${hue}, 65%, 55%, ${alpha})`;
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, barH, 1.5);
+    ctx.fill();
+  }
+}

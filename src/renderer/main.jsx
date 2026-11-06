@@ -12,6 +12,17 @@ initDebugLog();
 initLoudnessService();
 // lets styles adjust to the older chromium in downstream for legacy macos.
 if (__DOWNSTREAM_LEGACY__) document.body.classList.add('legacy-macos');
+// a file dropped where nothing takes it would open in place of downstream, so the window turns it away.
+// a folder that takes files says so first, which leaves its drop alone.
+const holdsFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+window.addEventListener('dragover', (e) => {
+  if (!holdsFiles(e) || e.defaultPrevented) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'none';
+});
+window.addEventListener('drop', (e) => {
+  if (holdsFiles(e) && !e.defaultPrevented) e.preventDefault();
+});
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

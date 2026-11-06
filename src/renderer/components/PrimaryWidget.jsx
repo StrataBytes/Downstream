@@ -5,6 +5,7 @@ import InputBar from './InputBar';
 import NowPlaying from './NowPlaying';
 import MusicPlayer from './MusicPlayer';
 import SearchPanel from './SearchPanel';
+import SavePicker from './SavePicker';
 
 // grows or shrinks the widget from its old box to its new one, including the move between positions.
 // new content fades in once the box is on its way.
@@ -51,11 +52,17 @@ export default function PrimaryWidget() {
   const musicFolder = useAppStore((s) => s.musicFolder);
   const playing = useAppStore((s) => s.musicPlaying);
   const folderScreen = useAppStore((s) => s.folderScreen);
-  const panelOpen = useAppStore((s) => s.musicLibraryOpen || s.eqOpen || s.behaviorOpen || s.normInfoOpen || s.optionsOpen);
+  const panelOpen = useAppStore((s) => s.musicLibraryOpen || s.eqOpen || s.settingsOpen || s.normInfoOpen);
   const immersive = currentView === 'player' && playerViewMode === 'immersive' && !!musicCurrent && !!musicFolder && !folderScreen;
   const setImmersiveIdle = useAppStore((s) => s.setImmersiveIdle);
+  const setPlayerIdle = useAppStore((s) => s.setPlayerIdle);
+  const fadeAfter = useAppStore((s) => s.voyagerFadeAfter);
+  // the player itself is showing, in any view mode.
+  const inPlayer = currentView === 'player' && !!musicCurrent && !!musicFolder && !folderScreen;
   const isDownloading = useAppStore((s) => s.isDownloading);
   const searching = useSearchStore((s) => s.open) && currentView === 'download';
+  // the save picker takes the widget over while it's open, in front of search if that's open too.
+  const saving = useAppStore((s) => s.savePickerOpen) && currentView === 'download';
   // matches when the queue sidebar is showing.
   const besideQueue = useAppStore((s) => s.queueOpen || s.queue.length > 0 || s.queueHistory.length > 0);
   // the mini player sits at the top center outside the player.
@@ -63,8 +70,8 @@ export default function PrimaryWidget() {
   const panelRef = useRef(null);
   const [idle, setIdle] = useState(false);
 
-  const mode = searching ? 'search' : 'normal';
-  useResizeAnimation(panelRef, folderScreen ? 'folders' : currentView, searching ? `search:${besideQueue}:${belowMini}` : mode, mode);
+  const mode = saving ? 'save' : searching ? 'search' : 'normal';
+  useResizeAnimation(panelRef, folderScreen ? 'folders' : currentView, mode === 'normal' ? mode : `${mode}:${besideQueue}:${belowMini}`, mode);
 
   // starting a download returns to the normal widget, where its progress shows.
   const wasDownloading = useRef(isDownloading);
@@ -77,16 +84,20 @@ export default function PrimaryWidget() {
   useEffect(() => {
     if (currentView === 'download') return;
     closeSearch();
+    useAppStore.getState().setSavePickerOpen(false);
     useAppStore.getState().setLinkControlsRevealed(false);
   }, [currentView]);
 
   useEffect(() => {
-    setImmersiveIdle(idle);
-  }, [idle, setImmersiveIdle]);
+    setImmersiveIdle(immersive && idle);
+    setPlayerIdle(idle);
+  }, [idle, immersive, setImmersiveIdle, setPlayerIdle]);
 
+  // after a while without input as music plays, voyager's controls fade, and the corner buttons with them in every view mode.
+  // a held button, or the pointer resting on the panel or the corner buttons, keeps them up.
   useEffect(() => {
     setIdle(false);
-    if (!immersive || !playing || panelOpen) return;
+    if (!inPlayer || !playing || panelOpen || fadeAfter === 'never') return;
     let timer;
     let held = false;
     const wake = () => {
@@ -94,8 +105,8 @@ export default function PrimaryWidget() {
       setIdle(false);
       timer = setTimeout(() => {
         const panel = panelRef.current;
-        if (!held && !panel?.matches(':hover')) setIdle(true);
-      }, 5000);
+        if (!held && !panel?.matches(':hover') && !document.querySelector('.btn-corner-zone:hover')) setIdle(true);
+      }, Number(fadeAfter) * 1000);
     };
     const down = () => { held = true; wake(); };
     const up = () => { held = false; wake(); };
@@ -106,13 +117,15 @@ export default function PrimaryWidget() {
       clearTimeout(timer);
       Object.entries(events).forEach(([event, handler]) => window.removeEventListener(event, handler));
     };
-  }, [immersive, playing, panelOpen]);
+  }, [inPlayer, playing, panelOpen, fadeAfter]);
 
   return (
-    <div ref={panelRef} className={`primary-widget${immersive ? ' primary-widget-immersive' : ''}${immersive && idle ? ' primary-widget-idle' : ''}${searching ? ' primary-widget-search' : ''}${searching && besideQueue ? ' primary-widget-beside-queue' : ''}${searching && belowMini ? ' primary-widget-below-mini' : ''}${folderScreen ? ' primary-widget-folders' : ''}`}>
+    <div ref={panelRef} className={`primary-widget${immersive ? ' primary-widget-immersive' : ''}${immersive && idle ? ' primary-widget-idle' : ''}${mode === 'search' ? ' primary-widget-search' : ''}${mode === 'save' ? ' primary-widget-save' : ''}${mode !== 'normal' && besideQueue ? ' primary-widget-beside-queue' : ''}${mode === 'search' && belowMini ? ' primary-widget-below-mini' : ''}${folderScreen ? ' primary-widget-folders' : ''}`}>
       <div className="primary-content">
         {currentView === 'player' ? (
           <MusicPlayer />
+        ) : saving ? (
+          <SavePicker />
         ) : searching ? (
           <SearchPanel />
         ) : (

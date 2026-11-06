@@ -16,6 +16,22 @@
   animation: slideOutRight 0.35s ease forwards;
 }
 
+/* while save to is open, frost covers the queue so nothing in it can be changed or started. */
+.queue-widget-frosted::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  border-radius: inherit;
+  background: rgba(15,25,35,0.4);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  animation: queueFrost 0.25s ease;
+}
+@keyframes queueFrost {
+  from { background: rgba(15,25,35,0); backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); }
+}
+
 .queue-header {
   display: flex;
   justify-content: space-between;
@@ -37,16 +53,64 @@
   color: rgba(255,255,255,0.4);
 }
 
-/* shown while any queued item's title is still resolving in the background, reassures that downloading never waits on metadata. */
-.queue-fetch-hint {
+.queue-tabs {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
   flex-shrink: 0;
-  padding: 6px 10px;
-  border-radius: 7px;
-  background: rgba(76,208,193,0.06);
-  border: 1px solid rgba(76,208,193,0.15);
-  color: rgba(76,208,193,0.65);
-  font-size: 0.7em;
-  line-height: 1.4;
+}
+.queue-tab {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: rgba(255,255,255,0.35);
+  font: inherit;
+  font-size: 1.1em;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.queue-tab:not(:disabled):hover { color: rgba(255,255,255,0.6); }
+.queue-tab-active,
+.queue-tab-active:not(:disabled):hover { color: #4cd0c1; }
+.queue-tab:disabled {
+  cursor: default;
+  color: rgba(255,255,255,0.18);
+}
+/* completed sits a little smaller than the queue itself. */
+.queue-tab.queue-tab-history {
+  font-size: 0.96em;
+}
+.queue-tab-count {
+  font-size: 0.68em;
+  font-weight: 600;
+  color: rgba(255,255,255,0.4);
+}
+
+.queue-set-all {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 20px;
+  flex-shrink: 0;
+}
+.queue-set-all-label {
+  margin-right: 3px;
+  font-size: 0.72em;
+  color: rgba(255,255,255,0.4);
+}
+/* titles still loading in the background, which downloads never wait on. */
+.queue-fetching {
+  margin-left: auto;
+  font-size: 0.68em;
+  color: rgba(76,208,193,0.6);
+  animation: queueFetching 1.6s ease-in-out infinite;
+}
+@keyframes queueFetching {
+  50% { opacity: 0.4; }
 }
 
 .queue-empty {
@@ -70,36 +134,35 @@
 .queue-list::-webkit-scrollbar-track { background: transparent; }
 .queue-list::-webkit-scrollbar-thumb { background: rgba(76,208,193,0.3); border-radius: 3px; }
 
+/* every row keeps the same three lines whatever its state, so nothing inside it shifts. */
 .queue-row {
-  padding: 12px;
+  padding: 10px 12px;
   border-radius: 10px;
   background: rgba(0,0,0,0.18);
   border: 1px solid rgba(255,255,255,0.06);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
   flex-shrink: 0;
-  transition: background 0.15s, opacity 0.5s ease, transform 0.5s ease, max-height 0.5s ease;
-  opacity: 1;
   overflow: hidden;
+  transition: background 0.15s;
+  animation: queueRowIn 0.25s ease both;
 }
 .queue-row:hover { background: rgba(76,208,193,0.06); }
 
-.queue-row-fade-out {
-  opacity: 0;
-  transform: translateX(20px);
-  max-height: 0;
-  padding: 0 12px;
-  margin: 0;
-  gap: 0;
-  border-color: transparent;
+@keyframes queueRowIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.queue-row-info {
+.queue-row-top {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 8px;
+}
+/* the remove button keeps its space once the item starts, so the title doesn't widen. */
+.queue-row .btn-row-remove:disabled {
+  visibility: hidden;
 }
 
 .queue-row-title {
@@ -110,6 +173,26 @@
   min-width: 0;
 }
 
+.queue-row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 18px;
+}
+
+.queue-row-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.7em;
+  color: rgba(255,255,255,0.4);
+}
+.queue-row-label.status-done { color: #2ecc71; }
+.queue-row-label.status-error { color: #e74c3c; }
+
 .queue-row-tags {
   display: flex;
   gap: 4px;
@@ -117,62 +200,123 @@
 }
 
 .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.65em;
   padding: 2px 7px;
   border-radius: 4px;
   background: rgba(76,208,193,0.12);
   color: #4cd0c1;
   font-weight: 600;
-  text-transform: uppercase;
+  white-space: nowrap;
 }
+/* the select sits invisibly over the tag, so a click opens the system menu. */
+.tag-select {
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.tag-select:hover { background: rgba(76,208,193,0.22); }
+.tag-select:focus-within { box-shadow: 0 0 0 1px rgba(76,208,193,0.6); }
+.tag-select select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 13px;
+}
+.tag-select svg { opacity: 0.7; }
 
-.queue-row-status {
+/* download all and the running batch share one slot of the same height. */
+.queue-footer {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-}
-
-.queue-row-label {
-  font-size: 0.7em;
-  color: rgba(255,255,255,0.4);
-}
-.queue-row-label.status-done { color: #2ecc71; }
-.queue-row-label.status-error { color: #e74c3c; }
-
-.queue-total-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.queue-actions {
-  display: flex;
-  flex-wrap: wrap;
   gap: 8px;
   flex-shrink: 0;
 }
-
-.queue-format-toggle {
-  display: flex;
-  gap: 4px;
+.queue-download {
+  flex: none;
+  height: 42px;
 }
 
-.queue-format-btn {
-  padding: 3px 8px;
-  border: 1px solid rgba(255,255,255,0.1);
+.queue-batch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 4px 0 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(76,208,193,0.25);
+  background: rgba(76,208,193,0.06);
+}
+.queue-batch-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.queue-batch-text {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.72em;
+  color: rgba(255,255,255,0.6);
+}
+.queue-batch-text span:first-child {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.queue-batch-cancel {
+  padding: 6px 10px;
+  border: none;
   border-radius: 6px;
-  background: rgba(255,255,255,0.03);
-  color: rgba(255,255,255,0.4);
-  font-size: 0.65em;
+  background: transparent;
+  color: rgba(231,76,60,0.85);
+  font-size: 0.75em;
   font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.queue-batch-cancel:hover { background: rgba(231,76,60,0.12); }
+.queue-batch-cancel:disabled { visibility: hidden; }
+
+.queue-footer-row {
+  display: flex;
+  gap: 8px;
+  min-height: 38px;
+}
+/* until a batch is under way, clear has the row to itself. */
+.queue-clear:only-child {
+  flex: 1;
+}
+.queue-footer-row .btn-folder-main {
+  flex: 1;
+  min-width: 0;
+}
+.queue-clear {
+  padding: 0 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-size: 0.85em;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
 }
-.queue-format-btn:hover {
-  color: #4cd0c1;
-  border-color: rgba(76,208,193,0.4);
-  background: rgba(76,208,193,0.08);
+.queue-clear:not(:disabled):hover {
+  border-color: rgba(231,76,60,0.4);
+  color: #e74c3c;
+  background: rgba(231,76,60,0.08);
+}
+.queue-clear:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .queue-ctx-menu {

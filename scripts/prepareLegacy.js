@@ -1,6 +1,6 @@
 'use strict';
 
-// prepares the legacy build's downloader in build/legacy (see duild-legacy.sh).
+// prepares the legacy build's downloader in build/legacy (see duild-mac-legacy.sh).
 // the official yt-dlp macos build needs 10.15, so the legacy build brings a standalone python and runs yt-dlp's platform-independent build with it.
 // both are pinned and checked against their release checksums, and are only fetched again when a pin changes.
 

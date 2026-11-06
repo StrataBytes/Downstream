@@ -11,6 +11,7 @@ import DownloadOptions from './DownloadOptions';
 import { SearchIcon, PlusIcon } from './InputBar';
 
 const compact = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
+const whole = new Intl.NumberFormat();
 
 function formatDuration(sec) {
   if (!sec) return '';
@@ -24,10 +25,11 @@ function metaFor(result, tab) {
   if (result.kind === 'playlist') return ['Playlist', result.channel].filter(Boolean).join(' · ');
   const parts = [result.channel || (tab === 'music' ? 'Song' : null)];
   if (result.views != null) parts.push(`${compact.format(result.views)} views`);
+  else if (result.plays) parts.push(result.plays);
   return parts.filter(Boolean).join(' · ');
 }
 
-function ResultRow({ result, tab, picked, queued }) {
+export function ResultRow({ result, tab, picked, queued }) {
   return (
     <button
       type="button"
@@ -51,6 +53,7 @@ function ResultRow({ result, tab, picked, queued }) {
               <line x1="4" y1="12" x2="20" y2="12" />
               <line x1="4" y1="18" x2="14" y2="18" />
             </svg>
+            {result.count != null && <span className="search-row-count">{whole.format(result.count)}</span>}
           </span>
         )}
       </span>
@@ -63,7 +66,7 @@ function ResultRow({ result, tab, picked, queued }) {
   );
 }
 
-function SkeletonRow() {
+export function SkeletonRow() {
   return (
     <div className="search-row search-row-skeleton">
       <span className="search-row-check" />
@@ -83,6 +86,8 @@ export default function SearchPanel() {
   const selected = useSearchStore((s) => s.selected);
   const notice = useSearchStore((s) => s.notice);
   const queue = useAppStore((s) => s.queue);
+  // the playlist picker sits over the results while it's open.
+  const picking = useAppStore((s) => s.playlistModal.open);
   const [text, setText] = useState(query);
   const [error, showError, clearError] = useTimedError();
   const listRef = useRef(null);
@@ -117,7 +122,7 @@ export default function SearchPanel() {
   };
 
   return (
-    <div className="search-panel">
+    <div className={`search-panel${picking ? ' search-panel-behind' : ''}`} inert={picking}>
       <div className="search-panel-top">
         <button className="search-panel-back" onClick={closeSearch} title="Back">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

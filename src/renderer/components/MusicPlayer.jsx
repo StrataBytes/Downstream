@@ -13,20 +13,18 @@ export default function MusicPlayer() {
   const musicLibraryOpen = useAppStore((s) => s.musicLibraryOpen);
   const musicShuffle = useAppStore((s) => s.musicShuffle);
   const musicRepeat = useAppStore((s) => s.musicRepeat);
-  const musicNormalize = useAppStore((s) => s.musicNormalize);
   const setMusicPlaying = useAppStore((s) => s.setMusicPlaying);
   const setMusicLibraryOpen = useAppStore((s) => s.setMusicLibraryOpen);
   const toggleMusicRepeat = useAppStore((s) => s.toggleMusicRepeat);
   const toggleMusicShuffle = useAppStore((s) => s.toggleMusicShuffle);
-  const toggleMusicNormalize = useAppStore((s) => s.toggleMusicNormalize);
   const playNextTrack = useAppStore((s) => s.playNextTrack);
   const playPrevTrack = useAppStore((s) => s.playPrevTrack);
   const musicVolume = useAppStore((s) => s.musicVolume);
   const setMusicVolume = useAppStore((s) => s.setMusicVolume);
   const eqOpen = useAppStore((s) => s.eqOpen);
   const setEqOpen = useAppStore((s) => s.setEqOpen);
-  const behaviorOpen = useAppStore((s) => s.behaviorOpen);
-  const setBehaviorOpen = useAppStore((s) => s.setBehaviorOpen);
+  const settingsOpen = useAppStore((s) => !!s.settingsOpen);
+  const openSettings = useAppStore((s) => s.openSettings);
   const playerViewMode = useAppStore((s) => s.playerViewMode);
   const setMusicFolderView = useAppStore((s) => s.setMusicFolderView);
   const folderScreen = useAppStore((s) => s.folderScreen);
@@ -157,28 +155,15 @@ export default function MusicPlayer() {
           <span>EQ</span>
         </button>
         <button type="button"
-          className={`music-folder-name${musicNormalize ? ' music-folder-name-active' : ''}`}
-          onClick={toggleMusicNormalize}
-          title="Volume normalization"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="5" y1="7" x2="5" y2="17" />
-            <line x1="10" y1="7" x2="10" y2="17" />
-            <line x1="15" y1="7" x2="15" y2="17" />
-            <line x1="20" y1="7" x2="20" y2="17" />
-          </svg>
-          <span>Norm</span>
-        </button>
-        <button type="button"
-          className={`music-folder-name${behaviorOpen ? ' music-folder-name-active' : ''}`}
-          onClick={() => setBehaviorOpen(!behaviorOpen)}
-          title="Playback behavior"
+          className={`music-folder-name${settingsOpen ? ' music-folder-name-active' : ''}`}
+          onClick={() => openSettings('player')}
+          title="Settings"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1.08z" />
           </svg>
-          <span>Behavior</span>
+          <span>Settings</span>
         </button>
       </div>
 
@@ -188,10 +173,10 @@ export default function MusicPlayer() {
         <div
           className="norm-scan-toast"
           onClick={() => setNormInfoOpen(true)}
-          title="Click to learn how Contextual Normalization works"
+          title="What this is"
         >
           <div className="norm-scan-title-row">
-            <ScrollingText text="Normalizing your Library..." className="norm-scan-title" />
+            <ScrollingText text="Normalizing your library..." className="norm-scan-title" />
             <svg className="norm-scan-info-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="16" x2="12" y2="12" />

@@ -1,0 +1,62 @@
+.new-media-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 320px;
+  padding: 11px 16px 11px 14px;
+  border: 1px solid rgba(76,208,193,0.3);
+  border-radius: 12px;
+  background: rgba(15,25,35,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  color: #4cd0c1;
+  animation: newMediaIn 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.new-media-toast svg {
+  flex-shrink: 0;
+}
+/* a skipped song is a heads-up, in the same amber as the folder screen's notices. */
+.new-media-toast-skipped {
+  border-color: rgba(255,180,60,0.3);
+  color: rgba(255,190,90,0.9);
+}
+.new-media-toast-leaving {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+/* in the top left corner, where the ambient home leaves room. */
+.new-media-toast.new-media-toast-up {
+  top: 24px;
+  bottom: auto;
+}
+
+@keyframes newMediaIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.new-media-toast-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.new-media-toast-title {
+  font-size: 0.8em;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+}
+.new-media-toast-desc {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.7em;
+  color: rgba(255,255,255,0.45);
+}

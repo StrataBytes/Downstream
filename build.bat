@@ -1,6 +1,7 @@
 @echo off
 echo ========================================
-echo   Downstream v2.4.1 - Build Installer
+echo   Downstream v3.0.0 for Windows - Build Installer
+echo   Target: Windows 10 and 11
 echo ========================================
 echo.
 

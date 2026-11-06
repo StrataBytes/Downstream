@@ -49,7 +49,7 @@ export function validateMediaLink(raw) {
     if (host.endsWith('youtu.be')) {
       const id = url.pathname.slice(1).split('/')[0];
       if (!YT_VIDEO_ID.test(id)) {
-        return { ok: false, reason: 'This YouTube share link looks incomplete -- no video ID after youtu.be/.' };
+        return { ok: false, reason: "This YouTube share link looks incomplete. There's no video ID after youtu.be/." };
       }
       return { ok: true, url: url.toString() };
     }

@@ -28,6 +28,10 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  transition: opacity 0.3s ease;
+}
+.search-panel-behind {
+  opacity: 0.2;
 }
 
 /* === search bar === */
@@ -275,8 +279,15 @@
   background: rgba(0,0,0,0.65);
   color: #fff;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 3px;
+}
+.search-row-count {
+  font-size: 0.66em;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .search-row-info {

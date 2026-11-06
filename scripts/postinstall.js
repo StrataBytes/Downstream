@@ -4,7 +4,7 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { unblockFile, redownloadYtDlp, YT_DLP_WIN_VERSION } = require('../src/binaryRecovery');
-const { installRelease, EXE_NAME: YT_DLP_MACOS_EXE } = require('../src/ytDlpMacos');
+const { installRelease, installFile, EXE_NAME: YT_DLP_MACOS_EXE } = require('../src/ytDlpMacos');
 
 const root = path.resolve(__dirname, '..');
 
@@ -12,6 +12,8 @@ const root = path.resolve(__dirname, '..');
 // updates that managed copy to yt-dlp nightly. Windows's equivalent lives in
 // src/binaryRecovery.js and is also used for Defender recovery.
 const YT_DLP_MACOS_VERSION = '2026.06.09';
+// pinned linux bootstrap binary, managed the same way.
+const YT_DLP_LINUX_VERSION = '2026.06.09';
 
 function ensureElectron() {
   const electronDir = path.join(root, 'node_modules', 'electron');
@@ -79,6 +81,16 @@ async function ensureYtDlp() {
     return;
   }
 
+  if (process.platform === 'linux') {
+    // yt-dlp-exec's linux binary is the python zipapp, which runs on the system's python3, and yt-dlp stops supporting each python version after it's retired.
+    // ships the official self-contained yt-dlp_linux build instead, with its own python, which updates itself in place like the windows exe.
+    const linuxBin = path.join(root, 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp_linux');
+    if (fs.existsSync(linuxBin)) return;
+    console.log(`Downloading yt-dlp_linux build (${YT_DLP_LINUX_VERSION})...`);
+    await installFile('yt-dlp/yt-dlp', YT_DLP_LINUX_VERSION, 'yt-dlp_linux', linuxBin);
+    return;
+  }
+
   if (fs.existsSync(bin)) {
     unblockFile(bin);
     return;
@@ -100,11 +112,13 @@ async function ensureYtDlp() {
 }
 
 function ensurePermissions() {
-  if (process.platform !== 'darwin') return;
+  if (process.platform === 'win32') return;
   const bins = [
     path.join(root, 'node_modules', 'ffmpeg-static', 'ffmpeg'),
-    path.join(root, 'node_modules', 'ffprobe-static', 'bin', 'darwin', process.arch, 'ffprobe'),
-    path.join(root, 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp_macos', YT_DLP_MACOS_EXE),
+    path.join(root, 'node_modules', 'ffprobe-static', 'bin', process.platform, process.arch, 'ffprobe'),
+    process.platform === 'darwin'
+      ? path.join(root, 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp_macos', YT_DLP_MACOS_EXE)
+      : path.join(root, 'node_modules', 'yt-dlp-exec', 'bin', 'yt-dlp_linux'),
   ];
   for (const bin of bins) {
     try { fs.chmodSync(bin, 0o755); } catch {}

@@ -261,15 +261,15 @@ function transport(music) {
   );
 }
 
-function back(enabled = true) {
-  return buttons({ label: 'Home', action: 'go-home', icon: 'NSTouchBarGoBackTemplate', enabled });
+function back() {
+  return buttons({ label: 'Home', action: 'go-home', icon: 'NSTouchBarGoBackTemplate' });
 }
 
 function homeItems({ music, prefs }) {
   const items = [
     button({ label: 'Downloader', action: 'go-download', icon: 'NSTouchBarDownloadTemplate' }),
     button({ label: 'Music Player', action: 'go-player', icon: 'NSTouchBarAudioOutputVolumeHighTemplate' }),
-    button({ label: 'Options', action: 'open-options', icon: 'NSActionTemplate' }),
+    button({ label: 'Settings', action: 'open-settings', icon: 'NSActionTemplate' }),
   ];
   if (music && prefs.musicEverywhere) {
     items.push(new TouchBarSpacer({ size: 'flexible' }), transport(music));
@@ -277,9 +277,9 @@ function homeItems({ music, prefs }) {
   return items;
 }
 
-// shown while the options modal is open.
-function optionsItems({ view, music, prefs }) {
-  const items = [button({ label: 'Close Options', action: 'close-options' })];
+// shown while the settings window is open.
+function settingsItems({ view, music, prefs }) {
+  const items = [button({ label: 'Close Settings', action: 'close-settings' })];
   if (music && (view === 'player' || prefs.musicEverywhere)) {
     items.push(new TouchBarSpacer({ size: 'flexible' }), transport(music));
   }
@@ -289,16 +289,13 @@ function optionsItems({ view, music, prefs }) {
 function downloadItems({ download, music, prefs }) {
   const idle = !download.busy;
   const items = [
-    back(idle),
+    back(),
     // download and stop both stay, only which one is enabled swaps.
     buttons(
       { label: 'Download', action: 'download-all', icon: 'NSTouchBarDownloadTemplate', enabled: idle && download.queued > 0 },
       { label: 'Stop', action: 'stop', icon: 'NSTouchBarRecordStopTemplate', enabled: !idle },
     ),
-    buttons(
-      { label: 'Open Folder', action: 'open-folder', icon: 'NSRevealFreestandingTemplate', enabled: idle },
-      { label: 'Change Folder', action: 'change-folder', icon: 'NSTouchBarFolderTemplate', enabled: idle },
-    ),
+    buttons({ label: 'Open Folder', action: 'open-folder', icon: 'NSRevealFreestandingTemplate' }),
   ];
 
   if (prefs.formatSwitch && idle && download.queued > 0) {
@@ -363,7 +360,7 @@ function buildItems(state) {
   stopMarquee();
   // startup shows its progress with nothing to press.
   if (state.starting) return [new TouchBarLabel({ label: `${state.starting}...` })];
-  if (state.optionsOpen) return optionsItems(state);
+  if (state.settingsOpen) return settingsItems(state);
   if (state.view === 'player') return playerItems(state);
   if (state.view === 'download') return downloadItems(state);
   return homeItems(state);

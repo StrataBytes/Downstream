@@ -2,8 +2,8 @@
 set -e
 
 echo "========================================"
-echo "  Downstream v2.4.1 for Legacy macOS - Build Installer"
-echo "  macOS 10.13 High Sierra and 10.14 Mojave"
+echo "  Downstream v3.0.0 for Legacy macOS - Build Installer"
+echo "  Target: macOS 10.13 High Sierra and 10.14 Mojave"
 echo "========================================"
 echo
 

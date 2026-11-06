@@ -1,0 +1,24 @@
+#!/bin/sh
+# ubuntu 24.04 and newer only let a program use the user namespaces electron's sandbox runs in when an apparmor profile allows it.
+# older releases have no such rule, and their apparmor can't read this profile, so it's only written where apparmor 4 is installed.
+set -e
+
+PROFILE=/etc/apparmor.d/downstream
+
+if [ -e /etc/apparmor.d/abi/4.0 ]; then
+  cat > "$PROFILE" <<'EOF'
+abi <abi/4.0>,
+include <tunables/global>
+
+profile downstream /usr/lib/downstream/downstream flags=(unconfined) {
+  userns,
+
+  include if exists <local/downstream>
+}
+EOF
+  if command -v apparmor_parser >/dev/null 2>&1; then
+    apparmor_parser --replace --write-cache --skip-read-cache "$PROFILE" || true
+  fi
+fi
+
+exit 0

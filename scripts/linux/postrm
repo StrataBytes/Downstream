@@ -1,0 +1,16 @@
+#!/bin/sh
+# takes the apparmor profile away when downstream is removed, and leaves it in place through an upgrade.
+set -e
+
+PROFILE=/etc/apparmor.d/downstream
+
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+  if [ -e "$PROFILE" ]; then
+    if command -v apparmor_parser >/dev/null 2>&1; then
+      apparmor_parser --remove "$PROFILE" 2>/dev/null || true
+    fi
+    rm -f "$PROFILE"
+  fi
+fi
+
+exit 0

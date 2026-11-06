@@ -1,22 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
 import useAppStore from './stores/useAppStore';
-import { wantsFolderScreen } from './services/musicLibrary';
+import { wantsFolderScreen, syncNativeFolders, loadDeleted } from './services/musicLibrary';
 import { useIPCListeners } from './hooks/useIPC';
 import { useMediaKeybinds } from './hooks/useMediaKeybinds';
 import { useTouchBar } from './hooks/useTouchBar';
+import { useMediaSession } from './hooks/useMediaSession';
 import BackgroundLayer from './components/BackgroundLayer';
 import LoadingOverlay from './components/LoadingOverlay';
 import AudioVisualizer from './components/AudioVisualizer';
 import ImmersiveStarfield from './components/ImmersiveStarfield';
 import AudioEngine from './components/AudioEngine';
 import SongProgressBar from './components/SongProgressBar';
-import DisclaimerModal from './components/DisclaimerModal';
-import GuideModal from './components/GuideModal';
+import DisclaimerModal, { agreed } from './components/DisclaimerModal';
+import { Welcome, welcomed } from './components/GuideModal';
 import MiniPlayer from './components/MiniPlayer';
-import NewFilesPopup from './components/NewFilesPopup';
+import NewMediaToast from './components/NewMediaToast';
 import DownloadView from './views/DownloadView';
 import HomeView from './views/HomeView';
-import OptionsModal from './components/OptionsModal';
+import SettingsModal from './components/SettingsModal';
 import DebugConsole from './components/DebugConsole';
 
 function useLiteModeClasses() {
@@ -29,16 +30,22 @@ function useLiteModeClasses() {
   }, [isLite, blur, anim]);
 }
 
-function needsDisclaimer(view) {
-  if (view === 'download') return !localStorage.getItem('disclaimerDownloadAccepted');
-  if (view === 'player') return !localStorage.getItem('disclaimerPlayerAccepted');
-  return false;
+// the look settings that are plain values, handed to the styles as variables on the page.
+function useLookVariables() {
+  const blur = useAppStore((s) => s.lookBlurIntensity);
+  const dim = useAppStore((s) => s.lookBackgroundDim);
+  const panels = useAppStore((s) => s.lookPanelOpacity);
+  useEffect(() => {
+    const root = document.documentElement.style;
+    root.setProperty('--bg-blur', `${blur}px`);
+    // half dimness is the original brightness, and the ends reach from fairly bright to nearly black.
+    root.setProperty('--bg-brightness', String(0.6 - (dim / 100) * 0.5));
+    root.setProperty('--panel-alpha', String(panels));
+  }, [blur, dim, panels]);
 }
 
-function needsGuide(view) {
-  if (view === 'download') return !localStorage.getItem('guideDownloadSeen');
-  if (view === 'player') return !localStorage.getItem('guidePlayerSeen');
-  return false;
+function needsDisclaimer(view) {
+  return !agreed(view);
 }
 
 // how long the old screen takes to fade out, and the new one to fade in.
@@ -57,8 +64,10 @@ function ViewContent({ view }) {
 export default function App() {
   useIPCListeners();
   useLiteModeClasses();
+  useLookVariables();
   useMediaKeybinds();
   useTouchBar();
+  useMediaSession();
 
   const nextView = useAppStore((s) => s.nextView);
   const currentView = useAppStore((s) => s.currentView);
@@ -66,8 +75,14 @@ export default function App() {
   const shown = useAppStore((s) => (s.folderScreen ? 'folders' : s.currentView));
   const [fading, setFading] = useState(false);
   const [disclaimer, setDisclaimer] = useState(null);
-  const [guide, setGuide] = useState(null);
+  const [welcome, setWelcome] = useState(null);
   const fadingSince = useRef(null);
+
+  // folders made in the downstream folder since the last launch join the library.
+  useEffect(() => {
+    syncNativeFolders();
+    loadDeleted();
+  }, []);
 
   useEffect(() => {
     setDisclaimer(needsDisclaimer(nextView) ? nextView : null);
@@ -102,7 +117,7 @@ export default function App() {
       <SongProgressBar />
       <AudioEngine />
       <AudioVisualizer />
-      <MiniPlayer leaving={fading && nextView === 'player'} />
+      <MiniPlayer heading={fading ? nextView : null} />
       <div className={`view-transition${fading ? ' view-fade-out' : ' view-fade-in'}`}>
         <ViewContent view={currentView} />
       </div>
@@ -112,13 +127,13 @@ export default function App() {
           onAccept={() => {
             const view = disclaimer;
             setDisclaimer(null);
-            if (needsGuide(view)) setGuide(view);
+            if (!welcomed(view)) setWelcome(view);
           }}
         />
       )}
-      {guide && <GuideModal type={guide} onDismiss={() => setGuide(null)} />}
-      <NewFilesPopup />
-      <OptionsModal />
+      {welcome && <Welcome area={welcome} onDone={() => setWelcome(null)} />}
+      <NewMediaToast />
+      <SettingsModal />
       <LoadingOverlay />
       <DebugConsole />
     </>

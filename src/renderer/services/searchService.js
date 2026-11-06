@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import useAppStore from '../stores/useAppStore';
-import { addResolvedToQueue, loadPlaylist } from './downloadService';
+import { addResolvedToQueue, openPlaylist } from './downloadService';
 import { canonicalVideoUrl } from '../utils/linkCheck';
 import { dbg } from './debugLog';
 
@@ -135,41 +135,19 @@ export function clearSelected() {
   set({ selected: {} });
 }
 
-function waitForPlaylistModal() {
-  return new Promise((resolve) => {
-    const unsubscribe = useAppStore.subscribe((s) => {
-      if (!s.playlistModal.open) {
-        unsubscribe();
-        resolve();
-      }
+// selected playlists line up, and each picker opens once the one before it closes.
+// cancelling one while it loads skips the rest too.
+function pickPlaylists(playlists, quality, format) {
+  playlists.forEach((playlist) => {
+    openPlaylist(playlist.url, quality, format, playlist.title).then((outcome) => {
+      if (outcome.cancelled || !(outcome.error || outcome.failed || outcome.single)) return;
+      dbg('search', '!', `couldn't load playlist ${playlist.url}`);
+      set({ notice: `Couldn't load "${playlist.title}".` });
     });
   });
 }
 
-// opens the playlist picker for each selected playlist, one after another.
-// cancelling one while it loads skips the rest too.
-async function pickPlaylists(playlists, quality, format) {
-  const app = useAppStore.getState;
-  for (const playlist of playlists) {
-    let info = null;
-    try {
-      info = await loadPlaylist(playlist.url);
-    } catch { /* reported below */ }
-    if (info?.cancelled) {
-      dbg('search', `stopped opening playlists at "${playlist.title}"`);
-      return;
-    }
-    if (!info?.videos?.length) {
-      dbg('search', '!', `couldn't load playlist ${playlist.url}`);
-      set({ notice: `Couldn't load "${playlist.title}".` });
-      continue;
-    }
-    app().openPlaylistModal(info, quality, format);
-    await waitForPlaylistModal();
-  }
-}
-
-export async function addSelected() {
+export function addSelected() {
   const picks = Object.values(get().selected).map((s) => s.result);
   if (picks.length === 0) return;
   const { downloadQuality: quality, downloadFormat: format } = useAppStore.getState();
@@ -178,5 +156,5 @@ export async function addSelected() {
   const videos = picks.filter((r) => r.kind === 'video');
   videos.forEach((r) => addResolvedToQueue(r, quality, format));
   dbg('search', `added ${videos.length} video(s)`);
-  await pickPlaylists(picks.filter((r) => r.kind === 'playlist'), quality, format);
+  pickPlaylists(picks.filter((r) => r.kind === 'playlist'), quality, format);
 }

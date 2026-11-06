@@ -1,4 +1,4 @@
-import useAppStore from '../stores/useAppStore';
+import useAppStore, { queueItemWaiting } from '../stores/useAppStore';
 import { dbg } from './debugLog';
 import { toMediaUrl } from '../utils/mediaUrl';
 import { canonicalVideoUrl, validateMediaLink } from '../utils/linkCheck';
@@ -23,6 +23,16 @@ const COOLDOWNS = [60000, 120000, 240000];
 // waits at least this long show a countdown on the item.
 const SHOWN_WAIT = 5000;
 
+// the downloader shows the current download's thumbnail, and every other screen keeps its own background.
+export function downloadOwnsBackground() {
+  const { currentView, nowPlaying } = useAppStore.getState();
+  return currentView === 'download' && !!nowPlaying?.thumbnail;
+}
+
+function showDownloadThumbnail(thumbnail) {
+  if (useAppStore.getState().currentView === 'download') useAppStore.getState().setBackgroundThumbnail(thumbnail);
+}
+
 function restoreAlbumBackground() {
   const { behaviorAlbumBackground, musicCurrent, setBackgroundThumbnail, setBackgroundVideo, clearBackgroundThumbnail } = useAppStore.getState();
   if (behaviorAlbumBackground && musicCurrent) {
@@ -32,7 +42,7 @@ function restoreAlbumBackground() {
     }
     window.electronAPI.getAlbumArt(musicCurrent.path).then((dataUrl) => {
       // a download thumbnail that landed in the meantime wins.
-      if (useAppStore.getState().nowPlaying?.thumbnail) return;
+      if (downloadOwnsBackground()) return;
       if (dataUrl) setBackgroundThumbnail(dataUrl);
       else clearBackgroundThumbnail();
     });
@@ -121,13 +131,24 @@ function nowPlayingFrom(item) {
 
 // updates the main widget and background when the current download's metadata lands.
 function refreshNowPlaying(url) {
-  const { nowPlaying, queue, queueHistory, setNowPlaying, setBackgroundThumbnail } = useAppStore.getState();
+  const { nowPlaying, queue, queueHistory, setNowPlaying } = useAppStore.getState();
   if (nowPlaying?.url !== url) return;
   const item = queue.find((q) => q.url === url) || queueHistory.find((q) => q.url === url);
   if (!item) return;
   setNowPlaying(nowPlayingFrom(item));
-  if (item.thumbnail) setBackgroundThumbnail(item.thumbnail);
+  if (item.thumbnail) showDownloadThumbnail(item.thumbnail);
 }
+
+// leaving the downloader mid-download hands the background back, and coming back takes it again.
+let shownView = useAppStore.getState().currentView;
+useAppStore.subscribe((s) => {
+  if (s.currentView === shownView) return;
+  const left = shownView === 'download';
+  shownView = s.currentView;
+  if (!s.nowPlaying) return;
+  if (s.currentView === 'download' && s.nowPlaying.thumbnail) s.setBackgroundThumbnail(s.nowPlaying.thumbnail);
+  else if (left) restoreAlbumBackground();
+});
 
 // background metadata fetcher.
 // only pasted links need this, since search results and playlist entries arrive with metadata already attached.
@@ -153,6 +174,7 @@ async function pumpMetadata() {
           uploadDate: formatUploadDate(info?.uploadDate),
           duration: info?.duration,
           titleLoaded: true,
+          ...(info?.live && LIVE_ITEM),
         });
         dbg('queue', `resolved "${info?.title || url}"`);
       } catch {
@@ -179,6 +201,9 @@ function prioritizeMetadata(url) {
   }
 }
 
+// a live stream would record until stopped, so it stays in the queue only to say why it won't download.
+const LIVE_ITEM = { live: true, failed: true, status: "Live streams can't be downloaded" };
+
 // pasted link: queues instantly with a placeholder title, resolves in the background, never blocks or locks the ui.
 // the url is canonicalized first so share-link variants of the same video dedupe to one entry.
 export function addLinkToQueue(rawUrl, quality, format) {
@@ -197,16 +222,18 @@ let playlistJobs = 0;
 let playlistListening = false;
 
 // lists a playlist's videos while the loading screen shows how far along it is.
-export async function loadPlaylist(url) {
+// a title already known from search shows until youtube sends its own.
+export async function loadPlaylist(url, title = null) {
   if (!playlistListening) {
     playlistListening = true;
     window.electronAPI.onPlaylistProgress(({ id, ...progress }) => {
-      if (id === playlistJob) useAppStore.getState().setPlaylistLoading(progress);
+      const { playlistLoading, setPlaylistLoading } = useAppStore.getState();
+      if (id === playlistJob) setPlaylistLoading({ ...progress, title: progress.title || playlistLoading?.title || null });
     });
   }
   const id = `playlist-${++playlistJobs}`;
   playlistJob = id;
-  useAppStore.getState().setPlaylistLoading({ title: null, found: 0, total: null, endless: false });
+  useAppStore.getState().setPlaylistLoading({ title, found: 0, total: null, endless: false });
   dbg('playlist', `loading ${url}`);
   try {
     const info = await window.electronAPI.playlistStart({ id, url });
@@ -224,6 +251,69 @@ export function cancelPlaylistLoad() {
   if (!playlistJob) return;
   dbg('playlist', 'cancelled from the loading screen');
   window.electronAPI.playlistCancel(playlistJob).catch(() => {});
+}
+
+// playlists open one at a time, each waiting for the picker before it to close.
+let playlistLine = Promise.resolve();
+// cancelling a loading playlist also drops the ones lined up behind it.
+let playlistRound = 0;
+
+function pickerClosed() {
+  return new Promise((resolve) => {
+    if (!useAppStore.getState().playlistModal.open) {
+      resolve();
+      return;
+    }
+    const unsubscribe = useAppStore.subscribe((s) => {
+      if (!s.playlistModal.open) {
+        unsubscribe();
+        resolve();
+      }
+    });
+  });
+}
+
+// opens the picker, or queues a playlist of one video straight away.
+async function showPlaylist(url, quality, format, title) {
+  let info;
+  try {
+    info = await loadPlaylist(url, title);
+  } catch (err) {
+    return { failed: err.message };
+  }
+  if (info?.cancelled) return { cancelled: true };
+  if (info?.error) return { error: info.message };
+  if (!info) return { single: true };
+  if (info.videos.length === 0) return { error: 'This playlist has no videos that can be downloaded.' };
+  if (info.videos.length === 1) addPlaylistToQueue(info.videos, quality, format);
+  else useAppStore.getState().openPlaylistModal(info, quality, format);
+  return {};
+}
+
+// lines a playlist up behind the ones already loading or being picked from.
+// resolves once it has loaded, with { cancelled }, { error }, { failed }, or { single } when the link isn't a playlist after all.
+export function openPlaylist(url, quality, format, title) {
+  const round = playlistRound;
+  const app = useAppStore.getState;
+  const turn = () => app().playlistTurn;
+  app().setPlaylistTurn({ ...turn(), of: turn().of + 1 });
+  let settle;
+  const outcome = new Promise((resolve) => { settle = resolve; });
+  playlistLine = playlistLine.then(async () => {
+    app().setPlaylistTurn({ ...turn(), at: turn().at + 1 });
+    if (round !== playlistRound) {
+      settle({ cancelled: true });
+      return;
+    }
+    const result = await showPlaylist(url, quality, format, title);
+    if (result.cancelled) playlistRound++;
+    settle(result);
+    await pickerClosed();
+  }).catch((err) => settle({ failed: err.message })).finally(() => {
+    // the count starts over once the line is empty.
+    if (turn().at === turn().of) app().setPlaylistTurn({ at: 0, of: 0 });
+  });
+  return outcome;
 }
 
 // a typed or pasted link, where playlist links open the picker.
@@ -250,29 +340,19 @@ export async function submitLink(text, quality, format) {
     return null;
   }
 
-  let info;
-  try {
-    info = await loadPlaylist(check.url);
-  } catch (err) {
-    dbg('link', '!', `playlist check failed: ${err.message}, adding as single`);
-    addLinkToQueue(check.url, quality, format);
-    return null;
-  }
-  if (info?.cancelled) return { cancelled: true };
-  if (info?.error) {
+  const outcome = await openPlaylist(check.url, quality, format);
+  if (outcome.cancelled) return { cancelled: true };
+  if (outcome.error) {
     // yt-dlp itself failed (e.g. missing/blocked binary), don't queue the playlist link as a fake "single video", tell the user instead.
-    dbg('link', '!', `playlist enumeration failed: ${info.message}`);
-    return { error: info.message };
+    dbg('link', '!', `playlist enumeration failed: ${outcome.error}`);
+    return { error: outcome.error };
   }
-  if (!info) {
+  if (outcome.failed) {
+    dbg('link', '!', `playlist check failed: ${outcome.failed}, adding as single`);
+    addLinkToQueue(check.url, quality, format);
+  } else if (outcome.single) {
     dbg('link', 'not a playlist, adding as single');
     addLinkToQueue(check.url, quality, format);
-  } else if (info.videos.length === 0) {
-    return { error: 'This playlist has no videos that can be downloaded.' };
-  } else if (info.videos.length === 1) {
-    addPlaylistToQueue(info.videos, quality, format);
-  } else {
-    useAppStore.getState().openPlaylistModal(info, quality, format);
   }
   return null;
 }
@@ -316,9 +396,7 @@ export function addPlaylistToQueue(videos, quality, format) {
 export function requestCancelDownloads() {
   const state = useAppStore.getState();
   if (!state.isDownloading) return;
-  const remaining = state.queue.filter(
-    (item) => !item.status?.includes('Completed') && !item.status?.includes('Complete')
-  ).length;
+  const remaining = state.queue.filter(queueItemWaiting).length;
   if (remaining <= 1) {
     state.setDownloadCancelled(true);
     window.electronAPI.cancelDownload().catch(() => {});
@@ -327,25 +405,62 @@ export function requestCancelDownloads() {
   }
 }
 
-export async function chooseDownloadFolder() {
-  const selected = await window.electronAPI.selectDownloadFolder();
-  if (selected) useAppStore.getState().setDownloadFolder(selected);
+// a folder picked from anywhere on the computer, or null when the dialog was cancelled.
+export function chooseDownloadFolder() {
+  return window.electronAPI.selectDownloadFolder();
+}
+
+// download all asks where to save first.
+// with that turned off, downloads go straight to the downloads folder.
+export function requestDownloadAll() {
+  const state = useAppStore.getState();
+  if (state.isDownloading || state.queue.length === 0) return;
+  if (state.askWhereToSave) {
+    state.setSavePickerOpen(true);
+    return;
+  }
+  state.setDownloadFolder(null);
+  downloadAll();
+}
+
+// cleanup left for after a batch, skipped when another batch has started by then.
+function whenIdle(ms, fn) {
+  setTimeout(() => {
+    if (!useAppStore.getState().isDownloading) fn();
+  }, ms);
+}
+
+// the batch's summary fades for a moment before it goes, so the download pill fades with it.
+const SUMMARY_FADE = 300;
+
+function hideTotalProgress(after) {
+  whenIdle(after - SUMMARY_FADE, () => {
+    useAppStore.getState().setTotalProgress({ leaving: true });
+    whenIdle(SUMMARY_FADE, () => {
+      useAppStore.getState().setTotalProgress({ visible: false, leaving: false, text: 'Ready', completed: 0, total: 0 });
+    });
+  });
 }
 
 export async function downloadAll() {
   const state = useAppStore.getState();
-  const queue = [...state.queue];
+  if (state.queue.length === 0) return;
+  dbg('download', `starting batch of ${state.queue.length}${state.queue.length >= LARGE_BATCH ? ', paced for a large batch' : ''}`);
 
-  if (queue.length === 0) return;
-  const paced = queue.length >= LARGE_BATCH;
-  dbg('download', `starting batch of ${queue.length}${paced ? ', paced for a large batch' : ''}`);
+  // items added while the batch runs join it, so nothing is left waiting once it ends.
+  // a finished item from the last batch can still be fading out of the queue, and isn't downloaded again.
+  const tried = new Set();
+  const untried = (q) => !tried.has(q.url) && queueItemWaiting(q);
+  const nextItem = () => useAppStore.getState().queue.find(untried);
+  const batchSize = () => tried.size + useAppStore.getState().queue.filter(untried).length;
 
   state.setIsDownloading(true);
   state.setDownloadCancelled(false);
   state.setTotalProgress({
     visible: true,
+    leaving: false,
     completed: 0,
-    total: queue.length,
+    total: batchSize(),
     text: 'Downloading...',
   });
 
@@ -354,19 +469,22 @@ export async function downloadAll() {
   let retrying = false;
   let stopped = false;
 
-  for (let i = 0; i < queue.length; i++) {
+  for (let item = nextItem(); item; item = nextItem()) {
     if (useAppStore.getState().downloadCancelled) {
       useAppStore.getState().setTotalProgress({ text: 'Cancelled' });
       break;
     }
 
-    const item = queue[i];
-    useAppStore.getState().updateQueueItem(item.url, { status: 'Working...' });
+    const total = batchSize();
+    const paced = total >= LARGE_BATCH;
+    useAppStore.getState().setTotalProgress({ total });
+    // an item that failed in an earlier batch starts clean.
+    useAppStore.getState().updateQueueItem(item.url, { status: 'Working...', failed: false });
 
     const latestItem = useAppStore.getState().queue.find((q) => q.url === item.url) || item;
     if (latestItem.thumbnail) {
-      useAppStore.getState().setBackgroundThumbnail(latestItem.thumbnail);
-    } else {
+      showDownloadThumbnail(latestItem.thumbnail);
+    } else if (useAppStore.getState().currentView === 'download') {
       // the previous download's thumbnail shouldn't linger while this one's metadata loads.
       restoreAlbumBackground();
     }
@@ -374,9 +492,9 @@ export async function downloadAll() {
     if (!latestItem.titleLoaded) prioritizeMetadata(item.url);
 
     // the gap goes between downloads, so the first one starts right away.
-    if (i > 0 && !retrying) {
-      const wait = nextWait(i, queue.length);
-      if (wait.rest) dbg('download', `resting ${formatWait(wait.ms)} after ${i} downloads`);
+    if (tried.size > 0 && !retrying) {
+      const wait = nextWait(tried.size, total);
+      if (wait.rest) dbg('download', `resting ${formatWait(wait.ms)} after ${tried.size} downloads`);
       const label = wait.rest ? restLabel : wait.ms >= SHOWN_WAIT ? startingLabel : null;
       await waitBeforeDownload(item.url, wait.ms, label);
       if (label) useAppStore.getState().updateQueueItem(item.url, { status: 'Working...' });
@@ -401,6 +519,9 @@ export async function downloadAll() {
         dbg('download', `cancelled "${titleOf(item.url)}"`);
         useAppStore.getState().updateQueueItem(item.url, { status: 'Cancelled' });
         break;
+      } else if (result?.live) {
+        dbg('download', `skipped "${titleOf(item.url)}", it's a live stream`);
+        useAppStore.getState().updateQueueItem(item.url, LIVE_ITEM);
       } else if (result?.rateLimited) {
         // the same item is tried again after a pause, until the pauses run out.
         if (cooldowns === COOLDOWNS.length) {
@@ -419,7 +540,6 @@ export async function downloadAll() {
           break;
         }
         retrying = true;
-        i--;
         continue;
       } else if (result && !result.success) {
         dbg('download', '!', `"${titleOf(item.url)}" failed: ${result.error || 'unknown'}`);
@@ -433,45 +553,29 @@ export async function downloadAll() {
       useAppStore.getState().updateQueueItem(item.url, { status: 'Error' });
     }
 
+    tried.add(item.url);
     completedVideos++;
-    useAppStore.getState().setTotalProgress({
-      completed: completedVideos,
-      total: queue.length,
-      text: i === queue.length - 1 ? 'Complete!' : 'Downloading...',
-    });
-
-    if (i === queue.length - 1 && !useAppStore.getState().downloadCancelled) {
-      // The thumbnail background deliberately lingers after the last download, but
-      // it must not keep the queue controls locked. Schedule that visual handoff
-      // independently so isDownloading can reset immediately below.
-      setTimeout(() => {
-        useAppStore.getState().clearNowPlaying();
-        restoreAlbumBackground();
-        setTimeout(() => {
-          useAppStore.getState().setTotalProgress({
-            visible: false,
-            text: 'Ready',
-            completed: 0,
-            total: 0,
-          });
-        }, 1000);
-      }, 5000);
-    }
+    useAppStore.getState().setTotalProgress({ completed: completedVideos, total: batchSize() });
   }
 
-  if (stopped || useAppStore.getState().downloadCancelled) {
+  // only the downloader has a download's thumbnail to hand back.
+  const handBack = () => {
+    const onDownloader = downloadOwnsBackground();
     useAppStore.getState().clearNowPlaying();
-    restoreAlbumBackground();
-    setTimeout(() => {
-      useAppStore.getState().setTotalProgress({
-        visible: false,
-        text: 'Ready',
-        completed: 0,
-        total: 0,
-      });
-    }, stopped ? 6000 : 2000);
+    if (onDownloader) restoreAlbumBackground();
+  };
+  if (stopped || useAppStore.getState().downloadCancelled) {
+    handBack();
+    hideTotalProgress(stopped ? 6000 : 2000);
+  } else {
+    useAppStore.getState().setTotalProgress({ text: 'Complete!' });
+    // the last thumbnail lingers a moment, without keeping the queue controls locked.
+    whenIdle(5000, () => {
+      handBack();
+      hideTotalProgress(1000);
+    });
   }
 
-  dbg('download', `batch finished: ${completedVideos} of ${queue.length}${stopped ? ', stopped by rate limiting' : ''}`);
+  dbg('download', `batch finished: ${completedVideos} of ${batchSize()}${stopped ? ', stopped by rate limiting' : ''}`);
   useAppStore.getState().setIsDownloading(false);
 }

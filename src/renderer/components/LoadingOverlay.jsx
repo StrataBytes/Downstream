@@ -5,6 +5,8 @@ const count = new Intl.NumberFormat();
 
 // a playlist gets its own loading screen, since a long one takes a while.
 function PlaylistLoading({ title, found, total, endless }) {
+  const turn = useAppStore((s) => s.playlistTurn);
+  const waiting = turn.of - turn.at;
   const known = total > 0;
   const status = found === 0
     ? 'Finding videos...'
@@ -15,7 +17,9 @@ function PlaylistLoading({ title, found, total, endless }) {
   return (
     <div className="loading-overlay">
       <div className="playlist-loading">
-        <span className="playlist-loading-label">{endless ? 'Loading mix' : 'Loading playlist'}</span>
+        <span className="playlist-loading-label">
+          {endless ? 'Loading mix' : 'Loading playlist'}{turn.of > 1 && ` ${turn.at} of ${turn.of}`}
+        </span>
         <span className="playlist-loading-title">{title}</span>
         <div className="shimmer-bar">
           <div
@@ -29,7 +33,7 @@ function PlaylistLoading({ title, found, total, endless }) {
         ) : total > LARGE_BATCH ? (
           <span className="playlist-loading-note">Long playlists load a page at a time to stay under YouTube's limits.</span>
         ) : null}
-        <button className="playlist-loading-cancel" onClick={cancelPlaylistLoad}>Cancel</button>
+        <button className="playlist-loading-cancel" onClick={cancelPlaylistLoad}>{waiting > 0 ? 'Cancel all' : 'Cancel'}</button>
       </div>
     </div>
   );

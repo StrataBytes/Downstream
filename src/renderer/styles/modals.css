@@ -8,7 +8,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: rgba(15,25,35,0.82);
+  background: rgba(15,25,35,var(--panel-alpha, 0.82));
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 16px;
   backdrop-filter: blur(12px);
@@ -32,6 +32,15 @@
   font-size: 1.1em;
   font-weight: 700;
   color: #4cd0c1;
+}
+.playlist-turn-title {
+  flex-shrink: 0;
+  margin-top: -6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.8em;
+  color: rgba(255,255,255,0.55);
 }
 
 .playlist-truncated-warning {
@@ -147,6 +156,13 @@
 .modal-buttons {
   display: flex;
   gap: 8px;
+}
+/* the add button carries a count, so it gets the wider share and stays on one line. */
+.playlist-panel .modal-buttons button {
+  white-space: nowrap;
+}
+.playlist-panel .modal-buttons button:first-child {
+  flex: 1.7;
 }
 .modal-buttons button {
   flex: 1;

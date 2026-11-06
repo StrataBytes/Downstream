@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
     platform: process.platform,
@@ -16,11 +16,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
     selectMusicFolders: () => ipcRenderer.invoke('select-music-folders'),
     openFolder: (folderPath) => ipcRenderer.invoke('open-folder', folderPath),
     renameFolder: (folderPath, newName) => ipcRenderer.invoke('rename-folder', folderPath, newName),
+    listNativeFolders: (savedPaths) => ipcRenderer.invoke('list-native-folders', savedPaths),
+    findMovedFolders: (lost) => ipcRenderer.invoke('find-moved-folders', lost),
+    createNativeFolder: (name) => ipcRenderer.invoke('create-native-folder', name),
+    deleteNativeFolder: (folderPath, known) => ipcRenderer.invoke('delete-native-folder', folderPath, known),
+    listDeleted: () => ipcRenderer.invoke('list-deleted'),
+    restoreDeleted: (id) => ipcRenderer.invoke('restore-deleted', id),
+    purgeDeleted: (ids) => ipcRenderer.invoke('purge-deleted', ids),
+    importFolder: (job) => ipcRenderer.invoke('import-folder', job),
+    cancelImport: () => ipcRenderer.invoke('cancel-import'),
+    folderMoved: (from, to) => ipcRenderer.send('folder-moved', from, to),
+    placeMedia: (job) => ipcRenderer.invoke('place-media', job),
+    discardCopies: (files) => ipcRenderer.invoke('discard-copies', files),
+    deleteMedia: (files) => ipcRenderer.invoke('delete-media', files),
+    pickMediaFiles: (extensions) => ipcRenderer.invoke('pick-media-files', extensions),
+    showMedia: (filePath) => ipcRenderer.invoke('show-media', filePath),
+    searchMedia: (folderPaths, query, extensions) => ipcRenderer.invoke('search-media', folderPaths, query, extensions),
+    mediaDetails: (files, measure) => ipcRenderer.invoke('media-details', files, measure),
+    folderDrives: (folderPaths) => ipcRenderer.invoke('folder-drives', folderPaths),
+    // a file dragged in from finder or file explorer, by its path.
+    // newer electron finds it with webutils, and the legacy build still has it on the file.
+    pathForFile: (file) => (webUtils?.getPathForFile ? webUtils.getPathForFile(file) : file.path),
     readMusicFolder: (folderPath, extensions) => ipcRenderer.invoke('read-music-folder', folderPath, extensions),
     scanMusicFolders: (folderPaths, extensions) => ipcRenderer.invoke('scan-music-folders', folderPaths, extensions),
+    folderDetails: (folderPaths, extensions, measure) => ipcRenderer.invoke('folder-details', folderPaths, extensions, measure),
     getFolderCover: (folderPath, extensions, refresh) => ipcRenderer.invoke('get-folder-cover', folderPath, extensions, refresh),
     getAlbumArt: (filePath) => ipcRenderer.invoke('get-album-art', filePath),
     measureLoudness: (filePath) => ipcRenderer.invoke('measure-loudness', filePath),
+    mediaSilentAt: (filePath, times) => ipcRenderer.invoke('media-silent-at', filePath, times),
     checkVersion: () => ipcRenderer.invoke('check-version'),
     checkFfmpeg: () => ipcRenderer.invoke('check-ffmpeg'),
     checkYtDlp: () => ipcRenderer.invoke('check-ytdlp'),
@@ -30,6 +53,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     checkYtDlpUpdate: () => ipcRenderer.invoke('check-ytdlp-update'),
     repairYtDlp: () => ipcRenderer.invoke('repair-ytdlp'),
     getAppSettings: () => ipcRenderer.invoke('get-app-settings'),
+    getInterfaceSize: () => ipcRenderer.invoke('get-interface-size'),
+    setInterfaceSize: (size) => ipcRenderer.invoke('set-interface-size', size),
     setHardwareAcceleration: (on) => ipcRenderer.invoke('set-hardware-acceleration', on),
     setDedicatedGpu: (on) => ipcRenderer.invoke('set-dedicated-gpu', on),
     resetAppSettings: () => ipcRenderer.invoke('reset-app-settings'),
@@ -52,7 +77,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
             'download-progress',
             'download-complete',
             'conversion-complete',
-            'download-error'
+            'download-error',
+            'import-progress'
         ];
         if (validChannels.includes(channel)) {
             ipcRenderer.on(channel, (event, ...args) => func(event, ...args));

@@ -7,10 +7,14 @@ const count = new Intl.NumberFormat();
 export default function PlaylistModal() {
   const { open, info, quality, format } = useAppStore((s) => s.playlistModal);
   const closePlaylistModal = useAppStore((s) => s.closePlaylistModal);
+  // a picker left open waits in the downloader until it's back.
+  const onDownloader = useAppStore((s) => s.currentView === 'download');
+  const turn = useAppStore((s) => s.playlistTurn);
+  const waiting = turn.of - turn.at;
   const [checked, setChecked] = useState({});
   const [closing, setClosing] = useState(false);
 
-  if (!open || !info) return null;
+  if (!open || !info || !onDownloader) return null;
 
   const videos = info.videos || [];
 
@@ -61,9 +65,10 @@ export default function PlaylistModal() {
   return (
     <div className={`playlist-panel ${closing ? 'playlist-panel-closing' : ''}`}>
       <div className="playlist-panel-header">
-        <h2>Playlist</h2>
+        <h2>{turn.of > 1 ? `Playlist ${turn.at} of ${turn.of}` : 'Playlist'}</h2>
         <span className="queue-count">{count.format(videos.length)} videos</span>
       </div>
+      <div className="playlist-turn-title" title={info.title}>{info.title}</div>
 
       <div className="modal-actions">
         <button onClick={selectAll}>Select All</button>
@@ -100,7 +105,7 @@ export default function PlaylistModal() {
 
       <div className="modal-buttons">
         <button onClick={handleAdd}>Add {selectedCount} Selected</button>
-        <button id="cancel-modal-btn" onClick={handleCancel}>Cancel</button>
+        <button id="cancel-modal-btn" onClick={handleCancel}>{waiting > 0 ? 'Skip' : 'Cancel'}</button>
       </div>
     </div>
   );

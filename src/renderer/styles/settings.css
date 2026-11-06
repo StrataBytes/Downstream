@@ -1,0 +1,622 @@
+/* the settings window: the app's side and the player's side, each with its pages down the left and the page on the right. */
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(12px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: settingsFadeIn 0.3s ease;
+}
+
+@keyframes settingsFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* a fixed height, so moving between pages never makes the window jump. */
+.settings-modal {
+  width: 92%;
+  max-width: 860px;
+  height: min(86vh, 660px);
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #1a2634, #243040);
+  border: 1px solid rgba(76,208,193,0.3);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  overflow: hidden;
+  animation: settingsSlideUp 0.3s ease;
+}
+
+@keyframes settingsSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 22px 14px 28px;
+  flex-shrink: 0;
+}
+
+.settings-title {
+  font-size: 1.15em;
+  font-weight: 700;
+  color: #4cd0c1;
+  letter-spacing: 0.3px;
+}
+
+/* the switch between the app's settings and the player's. */
+.settings-sides {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.22);
+}
+.settings-side {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-size: 0.8em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.settings-side:hover {
+  color: rgba(255,255,255,0.85);
+}
+.settings-side-active,
+.settings-side-active:hover {
+  background: rgba(76,208,193,0.14);
+  color: #4cd0c1;
+}
+
+.settings-close {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.settings-close:hover {
+  color: #ff5050;
+  border-color: rgba(255,80,80,0.3);
+  background: rgba(255,80,80,0.1);
+}
+
+.settings-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* === side menu === */
+
+.settings-nav {
+  width: 196px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 14px 20px 22px;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  overflow-y: auto;
+}
+
+.settings-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(0,0,0,0.18);
+  color: rgba(255,255,255,0.35);
+  cursor: text;
+  transition: border-color 0.15s, color 0.15s;
+}
+.settings-search:focus-within {
+  border-color: rgba(76,208,193,0.45);
+  color: #4cd0c1;
+}
+.settings-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: rgba(255,255,255,0.85);
+  font: inherit;
+  font-size: 0.74em;
+}
+.settings-search input::placeholder {
+  color: rgba(255,255,255,0.3);
+}
+
+.settings-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  font-size: 0.76em;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.settings-nav-btn svg {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+.settings-nav-btn:hover {
+  color: rgba(255,255,255,0.75);
+  background: rgba(255,255,255,0.04);
+}
+.settings-nav-btn-active,
+.settings-nav-btn-active:hover {
+  color: #4cd0c1;
+  background: rgba(76,208,193,0.1);
+}
+/* a page with something changed from the original gets a quiet ring. */
+.settings-page-changed {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border: 1.5px solid rgba(255,255,255,0.35);
+  border-radius: 50%;
+}
+
+.settings-result {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.settings-result span {
+  color: rgba(255,255,255,0.78);
+  font-size: 0.74em;
+  font-weight: 600;
+}
+.settings-result small {
+  color: rgba(255,255,255,0.32);
+  font-size: 0.64em;
+}
+/* the first result is the one enter picks. */
+.settings-search + .settings-result,
+.settings-result:hover,
+.settings-result:focus-visible {
+  outline: none;
+  background: rgba(76,208,193,0.08);
+}
+
+.settings-no-results {
+  padding: 6px 10px;
+  color: rgba(255,255,255,0.32);
+  font-size: 0.7em;
+  line-height: 1.4;
+}
+
+/* === page === */
+
+.settings-body {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 2px 30px 28px 28px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.settings-body > * { flex: 0 0 auto; }
+.settings-body::-webkit-scrollbar { width: 5px; }
+.settings-body::-webkit-scrollbar-track { background: transparent; }
+.settings-body::-webkit-scrollbar-thumb { background: rgba(76,208,193,0.3); border-radius: 3px; }
+
+.settings-page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 26px;
+  margin-bottom: -6px;
+}
+.settings-page-title {
+  font-size: 1em;
+  font-weight: 700;
+  color: rgba(255,255,255,0.88);
+}
+.settings-page-note {
+  margin: 0;
+  font-size: 0.72em;
+  color: rgba(255,255,255,0.35);
+  line-height: 1.45;
+}
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scroll-margin: 16px;
+}
+.settings-group-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.74em;
+  font-weight: 600;
+  color: rgba(255,255,255,0.45);
+}
+.settings-group-note {
+  margin: -2px 0 0;
+  font-size: 0.68em;
+  color: rgba(255,255,255,0.3);
+  line-height: 1.4;
+}
+
+/* === rows === */
+
+.settings-rows {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.025);
+  overflow: hidden;
+}
+
+.settings-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 16px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  scroll-margin: 16px;
+}
+.settings-row + .settings-row {
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* a switch row is one big button, stretched under the row's contents, with the arrow that puts it back on top. */
+.settings-row-switch {
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.settings-row-switch:hover {
+  background: rgba(255,255,255,0.03);
+}
+.settings-row-hit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+.settings-row-hit:focus-visible {
+  outline: none;
+  background: rgba(76,208,193,0.06);
+}
+
+.settings-row-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.settings-row-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8em;
+  font-weight: 500;
+  color: rgba(255,255,255,0.8);
+}
+.settings-row-desc {
+  font-size: 0.68em;
+  color: rgba(255,255,255,0.33);
+  line-height: 1.45;
+}
+.settings-row-control {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* sliders and bigger things take the row's whole width, under their name. */
+.settings-row-slider,
+.settings-row-block {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.settings-slider-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* the chosen card's own settings, hung under the cards on a rail. */
+.settings-mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 2px 0 0 6px;
+  padding: 2px 0 2px 14px;
+  border-left: 2px solid rgba(76,208,193,0.3);
+  animation: settingsReveal 0.22s ease;
+}
+.settings-mode-title {
+  font-size: 0.7em;
+  font-weight: 600;
+  color: rgba(76,208,193,0.75);
+}
+
+@keyframes settingsReveal {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* a setting lite mode is holding off, as a line in its place. */
+.settings-held {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px dashed rgba(76,208,193,0.22);
+  border-radius: 10px;
+  background: rgba(76,208,193,0.04);
+  font-size: 0.72em;
+  color: rgba(76,208,193,0.7);
+  line-height: 1.45;
+}
+.settings-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #4cd0c1;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.settings-switch-button {
+  display: flex;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* beside a setting changed from the original, an arrow that puts it back. */
+.settings-changed {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: rgba(255,255,255,0.32);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.settings-changed:hover,
+.settings-changed:focus-visible {
+  outline: none;
+  color: #4cd0c1;
+  background: rgba(76,208,193,0.1);
+}
+
+/* shown in the page's header once something on it is changed. */
+.settings-page-reset {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 0.72em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.settings-page-reset:hover {
+  color: #4cd0c1;
+  background: rgba(76,208,193,0.08);
+}
+
+/* a few whole ways of working, each card with a picture of itself. */
+.settings-cards {
+  display: grid;
+  gap: 10px;
+}
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 8px 11px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.settings-card:hover {
+  border-color: rgba(76,208,193,0.35);
+}
+.settings-card-on,
+.settings-card-on:hover {
+  border-color: rgba(76,208,193,0.55);
+  background: rgba(76,208,193,0.07);
+}
+.settings-card .sp-mini {
+  margin-bottom: 7px;
+}
+/* cards with no picture, just a name and a line, sit a little roomier. */
+.settings-cards-plain .settings-card {
+  padding: 11px 12px 12px;
+}
+.settings-card-name {
+  padding: 0 3px;
+  font-size: 0.84em;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+}
+.settings-card-on .settings-card-name {
+  color: #4cd0c1;
+}
+/* a quiet word beside a card's name, like the older way of doing something being marked legacy. */
+.settings-card-tag {
+  margin-left: 7px;
+  padding: 1px 6px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 5px;
+  color: rgba(255,255,255,0.42);
+  font-size: 0.74em;
+  font-weight: 600;
+  vertical-align: 1px;
+}
+
+/* how many of the playing folder's songs are measured, as a count over a thin bar. */
+.norm-measured {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  width: 96px;
+}
+.norm-measured-count {
+  font-size: 0.72em;
+  font-weight: 600;
+  color: #4cd0c1;
+  font-variant-numeric: tabular-nums;
+}
+.norm-measured-bar {
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+.norm-measured-bar i {
+  display: block;
+  height: 100%;
+  background: #4cd0c1;
+  transition: width 0.4s ease;
+}
+.settings-card-desc {
+  padding: 0 3px;
+  font-size: 0.7em;
+  color: rgba(255,255,255,0.38);
+}
+
+/* switches small enough to sit in a row, like the formats the library plays. */
+.settings-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.settings-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 9px;
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.45);
+  font: inherit;
+  font-size: 0.76em;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.settings-chip svg {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.settings-chip[aria-checked="true"] {
+  border-color: rgba(76,208,193,0.5);
+  background: rgba(76,208,193,0.1);
+  color: #4cd0c1;
+}
+.settings-chip[aria-checked="true"] svg {
+  opacity: 1;
+}
+
+/* the picture at the top of a page. */
+.settings-stage {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  background: #0d141b;
+  scroll-margin: 16px;
+}
+
+/* a setting found by search or a link lights up for a moment. */
+.settings-modal [data-flash] {
+  outline: 1px solid transparent;
+  outline-offset: -1px;
+  border-radius: 10px;
+  animation: settingsFlash 1.6s ease-out;
+}
+.settings-modal .settings-group[data-flash] {
+  outline-offset: 6px;
+}
+
+@keyframes settingsFlash {
+  0% { outline-color: rgba(76,208,193,0); background-color: rgba(76,208,193,0); }
+  14% { outline-color: rgba(76,208,193,0.85); background-color: rgba(76,208,193,0.08); }
+  62% { outline-color: rgba(76,208,193,0.6); background-color: rgba(76,208,193,0.05); }
+  100% { outline-color: rgba(76,208,193,0); background-color: rgba(76,208,193,0); }
+}

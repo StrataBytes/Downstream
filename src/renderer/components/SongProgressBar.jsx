@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import useAppStore from '../stores/useAppStore';
+import { dbg } from '../services/debugLog';
 
 function hasUsableDuration(audio) {
   return Number.isFinite(audio?.duration) && audio.duration > 0;
@@ -17,7 +18,12 @@ function formatSeekTime(seconds) {
 }
 
 const PREPARE_SHIMMER_DELAY = 350;
+// while dragging, the bar follows the pointer every frame but the audio only jumps this often.
+// every jump rereads the file from a new spot, which a slow drive can fall behind on.
+const DRAG_SEEK_INTERVAL = 150;
 const SHIMMER_EXIT_DURATION = 360;
+// a seek waits on data for a moment, so buffering only shows once the wait has gone on longer, instead of flickering with every seek.
+const BUFFERING_DELAY = 400;
 
 export default function SongProgressBar() {
   const audioRef = useAppStore((s) => s.musicAudioRef);
@@ -40,6 +46,8 @@ export default function SongProgressBar() {
   const dragPointerIdRef = useRef(null);
   const dragRafRef = useRef(null);
   const pendingDragXRef = useRef(null);
+  const lastSeekRef = useRef(0);
+  const dragSeeksRef = useRef(0);
   const [dragging, setDragging] = useState(false);
 
   const setShimmerPhase = (phase) => {
@@ -97,6 +105,11 @@ export default function SongProgressBar() {
 
     const tick = () => {
       const audio = audioRef?.current;
+      // a drag owns the bar, since the audio only catches up to it a few times a second.
+      if (draggingRef.current) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
       if (audio?.src) {
         if (hasUsableDuration(audio) && Number.isFinite(audio.currentTime)) {
           // Some long media files report Infinity or unstable metadata while the
@@ -142,20 +155,28 @@ export default function SongProgressBar() {
     setBuffering(false);
     if (!audio) return;
 
-    const onWaiting = () => setBuffering(true);
+    let waitTimer = null;
+    const stopWaiting = () => {
+      clearTimeout(waitTimer);
+      setBuffering(false);
+    };
+    const onWaiting = () => {
+      clearTimeout(waitTimer);
+      waitTimer = setTimeout(() => setBuffering(true), BUFFERING_DELAY);
+    };
     const onLoadStart = () => {
       beginPreparation();
-      setBuffering(false);
+      stopWaiting();
       setProgress(0);
       lastProgressRef.current = -1;
     };
     const onReady = () => {
-      setBuffering(false);
+      stopWaiting();
       if (hasUsableDuration(audio)) finishPreparation();
     };
     const onError = () => {
       finishPreparation();
-      setBuffering(false);
+      stopWaiting();
     };
 
     audio.addEventListener('loadstart', onLoadStart);
@@ -171,6 +192,7 @@ export default function SongProgressBar() {
     const initialCheck = setTimeout(onReady, 0);
     return () => {
       clearTimeout(initialCheck);
+      clearTimeout(waitTimer);
       audio.removeEventListener('loadstart', onLoadStart);
       audio.removeEventListener('waiting', onWaiting);
       audio.removeEventListener('playing', onReady);
@@ -201,12 +223,17 @@ export default function SongProgressBar() {
     return position;
   }, [getSeekPosition]);
 
-  const seekToPointer = useCallback((clientX) => {
+  // moves the bar to the pointer, and the audio too unless it jumped too recently during a drag.
+  const seekToPointer = useCallback((clientX, { force = false } = {}) => {
     const position = previewSeekPosition(clientX);
     if (!position) return;
     const { audio, ratio } = position;
-    audio.currentTime = ratio * audio.duration;
     setProgress(ratio);
+    const now = performance.now();
+    if (!force && draggingRef.current && now - lastSeekRef.current < DRAG_SEEK_INTERVAL) return;
+    lastSeekRef.current = now;
+    dragSeeksRef.current++;
+    audio.currentTime = ratio * audio.duration;
   }, [previewSeekPosition]);
 
   const handlePointerMove = useCallback((e) => {
@@ -227,26 +254,29 @@ export default function SongProgressBar() {
   const handlePointerDown = useCallback((e) => {
     if (!getSeekPosition(e.clientX)) return;
     e.preventDefault();
+    dragSeeksRef.current = 0;
+    seekToPointer(e.clientX, { force: true });
     draggingRef.current = true;
     dragPointerIdRef.current = e.pointerId;
     setDragging(true);
     e.currentTarget.setPointerCapture(e.pointerId);
-    seekToPointer(e.clientX);
   }, [getSeekPosition, seekToPointer]);
 
+  // a drag ends on release, or when the bar loses the pointer some other way, and the audio lands where the bar ended.
   const finishDrag = useCallback((e) => {
     if (!draggingRef.current || e.pointerId !== dragPointerIdRef.current) return;
     cancelAnimationFrame(dragRafRef.current);
     dragRafRef.current = null;
-    if (e.type !== 'pointercancel') {
-      seekToPointer(e.clientX);
-    }
+    const x = e.type === 'pointerup' ? e.clientX : pendingDragXRef.current;
+    if (e.type !== 'pointercancel' && x != null) seekToPointer(x, { force: true });
     draggingRef.current = false;
     dragPointerIdRef.current = null;
+    pendingDragXRef.current = null;
     setDragging(false);
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
+    dbg('player', `seek drag ended (${e.type}) after ${dragSeeksRef.current} seek(s)`);
   }, [seekToPointer]);
 
   const hidden = useAppStore((s) => s.behaviorHideProgressBar);
@@ -263,6 +293,7 @@ export default function SongProgressBar() {
       onPointerMove={handlePointerMove}
       onPointerUp={finishDrag}
       onPointerCancel={finishDrag}
+      onLostPointerCapture={finishDrag}
       onPointerLeave={() => { if (!draggingRef.current) setSeekPreview(null); }}
     >
       <div

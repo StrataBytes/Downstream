@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import useAppStore from '../stores/useAppStore';
-import { downloadAll, requestCancelDownloads, chooseDownloadFolder } from '../services/downloadService';
+import { requestDownloadAll, requestCancelDownloads } from '../services/downloadService';
 import { SHUFFLE_ICON, REPEAT_ICON } from '../utils/toggleIcons';
 import { dbg } from '../services/debugLog';
 
@@ -67,7 +67,7 @@ function snapshot(s) {
   return {
     view: s.currentView,
     starting: s.startupStep,
-    optionsOpen: s.optionsOpen,
+    settingsOpen: !!s.settingsOpen,
     prefs: s.touchBarPrefs,
     music: s.musicCurrent
       ? {
@@ -91,23 +91,22 @@ function snapshot(s) {
 
 // same guards as the on-screen buttons.
 const ACTIONS = {
-  'go-home': (s) => { if (!s.isDownloading) s.goToView('home'); },
+  'go-home': (s) => s.goToView('home'),
   'go-download': (s) => s.goToView('download'),
-  'go-player': (s) => { if (!s.isDownloading) s.goToView('player'); },
-  // also dismisses the auto lite mode notice, like the home options button.
-  'open-options': (s) => { s.setOptionsOpen(true); s.setShowAutoLiteNotice(false); },
-  'close-options': (s) => s.setOptionsOpen(false),
+  'go-player': (s) => s.goToView('player'),
+  // also dismisses the auto lite mode notice, like the home settings button.
+  'open-settings': (s) => { s.openSettings('home', s.showAutoLiteNotice ? 'performance' : null); s.setShowAutoLiteNotice(false); },
+  'close-settings': (s) => s.closeSettings(),
   'play-pause': (s) => { if (s.musicCurrent) s.setMusicPlaying(!s.musicPlaying); },
   'next': (s) => s.playNextTrack(),
   'prev': (s) => s.playPrevTrack(),
   'volume': (s, value) => s.setMusicVolume(Math.min(1, Math.max(0, value / 100))),
   'shuffle': (s) => s.toggleMusicShuffle(),
   'repeat': (s) => s.toggleMusicRepeat(),
-  'download-all': (s) => { if (!s.isDownloading && s.queue.length > 0) downloadAll(); },
+  'download-all': (s) => { if (!s.isDownloading && s.queue.length > 0) requestDownloadAll(); },
   'stop': () => requestCancelDownloads(),
   'open-folder': (s) => window.electronAPI.openDownloadsFolder(s.downloadFolder),
-  'change-folder': (s) => { if (!s.isDownloading) chooseDownloadFolder(); },
-  'format': (s, value) => { if (!s.isDownloading) s.setAllQueueFormat(value); },
+  'format': (s, value) => { if (!s.isDownloading) s.setQueueOptions({ format: value }); },
 };
 
 export function useTouchBar() {

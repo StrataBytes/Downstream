@@ -1,10 +1,6 @@
 import { useRef, useEffect } from 'react';
 import useAppStore from '../stores/useAppStore';
-import { createBarReader, STANDARD_BARS } from '../utils/spectrumBars';
-
-// bars drawn at each detail level, picked in behavior.
-const DETAIL_BARS = { standard: STANDARD_BARS, high: 120, ultra: 160 };
-const BAR_GAP = 2;
+import { createBarReader, DETAIL_BARS, liftReadings, paintBars } from '../utils/spectrumBars';
 
 export default function AudioVisualizer() {
   const canvasRef = useRef(null);
@@ -24,6 +20,9 @@ export default function AudioVisualizer() {
     const ctx = canvas.getContext('2d');
     const dataArray = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
     const reader = analyser ? createBarReader(analyser, bars, { legacy }) : null;
+    const lifted = analyser ? new Float32Array(analyser.frequencyBinCount) : null;
+    // the analyser's readings run from its quietest to loudest decibels across a byte.
+    const perDb = analyser ? 255 / (analyser.maxDecibels - analyser.minDecibels) : 0;
 
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -38,28 +37,14 @@ export default function AudioVisualizer() {
       animRef.current = requestAnimationFrame(draw);
       const w = canvas.offsetWidth;
       const h = canvas.offsetHeight;
+      // the brightness setting scales how strongly every bar shows.
+      const { lookVisualizerBrightness: brightness, lookVisualizerLift } = useAppStore.getState();
       ctx.clearRect(0, 0, w, h);
 
       if (!reader) return;
       analyser.getByteFrequencyData(dataArray);
-      const heights = reader.read(dataArray);
-
-      const barW = (w - BAR_GAP * (bars - 1)) / bars;
-
-      for (let i = 0; i < bars; i++) {
-        const val = heights[i];
-        const barH = val * h;
-
-        const x = i * (barW + BAR_GAP);
-        const y = h - barH;
-
-        const hue = 170 + (i / bars) * 20;
-        const alpha = 0.1 + val * 0.5;
-        ctx.fillStyle = `hsla(${hue}, 65%, 55%, ${alpha})`;
-        ctx.beginPath();
-        ctx.roundRect(x, y, barW, barH, 1.5);
-        ctx.fill();
-      }
+      const data = lookVisualizerLift ? liftReadings(dataArray, lifted, lookVisualizerLift, perDb) : dataArray;
+      paintBars(ctx, reader.read(data), w, h, brightness);
     };
 
     draw();

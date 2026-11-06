@@ -1,0 +1,159 @@
+/* the guide's moving pictures: a piece of the real app at its own size, shrunk into a frame, played out by a pointer.
+   everything inside is the app's own styles, so only the frame, the pointer and a few stand-ins live here. */
+
+.gs-stage {
+  position: relative;
+  flex-shrink: 0;
+  height: 250px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #0f1923, #1a2d42);
+}
+
+/* the window the piece of the app sits in, with the page's own text settings. */
+.gs-screen {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  transform-origin: 0 0;
+  font-size: 16px;
+  line-height: normal;
+  color: #e4e4e7;
+  text-align: left;
+}
+
+/* nothing scrolls in a picture, so no scrollbars show, even where the system always draws them. */
+.gs-screen ::-webkit-scrollbar {
+  display: none;
+}
+
+.gs-center {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* the space left of the queue, where the downloader's widget sits. */
+.gs-left {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 330px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* a scene laid out to its own size, kept in the middle however wide the window is.
+   it holds the scene's fixed pieces, like the drag zones, in place around its panel. */
+.gs-frame {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.gs-fill {
+  position: absolute;
+  inset: 0;
+}
+
+.primary-widget.gs-anchored {
+  position: absolute;
+}
+
+/* the widget grows from one layout to the next the way the downloader's does. */
+.gs-morph {
+  transition: width 0.38s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.38s cubic-bezier(0.2, 0.8, 0.2, 1), padding 0.3s ease;
+}
+.gs-swap {
+  animation: gsSwap 0.26s 0.11s ease backwards;
+}
+@keyframes gsSwap {
+  from { opacity: 0; }
+}
+.gs-leaving {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+/* a button held down under the pointer. */
+.gs-screen .gs-pressed {
+  transform: scale(0.95);
+}
+
+/* the folder list's height follows the window in the app, so here it's set to show whole rows. */
+.gs-screen .folders-list {
+  height: 252px;
+}
+.gs-screen .primary-widget-folders.gs-anchored .folders-list {
+  height: 133px;
+}
+.gs-screen .folders-list.save-picker-list {
+  height: auto;
+  max-height: none;
+}
+
+/* === the pointer === */
+/* the settings pictures' pointer, kept the same size however far its scene is shrunk. */
+
+.gs-pointer {
+  position: absolute;
+  z-index: 3000;
+  width: calc(15px * var(--gs-unscale, 1));
+  height: calc(15px * var(--gs-unscale, 1));
+  pointer-events: none;
+  transition: left 0.55s cubic-bezier(0.3, 0.7, 0.3, 1), top 0.55s cubic-bezier(0.3, 0.7, 0.3, 1), opacity 0.3s ease;
+}
+.gs-pointer svg {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+  transition: transform 0.12s ease;
+}
+.gs-pointer-away {
+  opacity: 0;
+}
+.gs-pointer-down svg {
+  transform: scale(0.82);
+}
+
+/* a folder being dragged, carried under the pointer like the system draws it. */
+.gs-carry {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 111px;
+  opacity: 0.7;
+  transform: translate(-50%, -50%);
+}
+
+/* a menu that opens above the button it belongs to, the way the app's does when there's no room below. */
+.gs-screen .queue-ctx-menu.gs-menu-above {
+  position: absolute;
+  z-index: 5;
+}
+/* the item under the pointer, lit the way hovering lights it. */
+.gs-screen .queue-ctx-item.gs-hover {
+  background: rgba(76,208,193,0.12);
+  color: #4cd0c1;
+}
+
+/* the song under the pointer, which shows its tick circle the way a hovered row does. */
+.gs-screen .search-row.gs-row-hover {
+  background: rgba(255,255,255,0.04);
+}
+.gs-screen .folders-songs:not(.folders-songs-picking) .search-row.folders-song-row.gs-row-hover:not(.search-row-picked) .search-row-check {
+  opacity: 1;
+  border-color: rgba(255,255,255,0.5);
+}

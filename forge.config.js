@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { buildControlStrip } = require('./scripts/buildControlStrip');
 
-// downstream for legacy macos, the same app built to run on macos 10.13 and 10.14 (see duild-legacy.sh).
+// downstream for legacy macos, the same app built to run on macos 10.13 and 10.14 (see duild-mac-legacy.sh).
 // it brings its own python and runs yt-dlp's platform-independent build, prepared in build/legacy by scripts/prepareLegacy.js.
 const legacy = process.env.DOWNSTREAM_LEGACY === '1';
 
@@ -50,19 +50,28 @@ module.exports = {
     icon: process.platform === 'darwin'
       ? 'assets/icons/mac/icon'
       : 'assets/icons/win/icon',
-    extraResource: process.platform === 'darwin'
-      ? [
-          './node_modules/ffmpeg-static/ffmpeg',
-          `./node_modules/ffprobe-static/bin/darwin/${process.arch}/ffprobe`,
-          ...(legacy
-            ? ['./build/legacy/yt-dlp_macos', './build/legacy/python']
-            : ['./node_modules/yt-dlp-exec/bin/yt-dlp_macos']),
-        ]
-      : [
-          './node_modules/ffmpeg-static/ffmpeg.exe',
-          `./node_modules/ffprobe-static/bin/win32/${process.arch}/ffprobe.exe`,
-          './node_modules/yt-dlp-exec/bin/yt-dlp.exe',
-        ],
+    // linux names its program in lowercase, as packages there do, and the other platforms keep theirs.
+    ...(process.platform === 'linux' ? { executableName: 'downstream' } : {}),
+    extraResource: {
+      darwin: [
+        './node_modules/ffmpeg-static/ffmpeg',
+        `./node_modules/ffprobe-static/bin/darwin/${process.arch}/ffprobe`,
+        ...(legacy
+          ? ['./build/legacy/yt-dlp_macos', './build/legacy/python']
+          : ['./node_modules/yt-dlp-exec/bin/yt-dlp_macos']),
+      ],
+      // the window icon comes along as a file, since linux has no icon inside the program itself.
+      linux: [
+        './node_modules/ffmpeg-static/ffmpeg',
+        `./node_modules/ffprobe-static/bin/linux/${process.arch}/ffprobe`,
+        './node_modules/yt-dlp-exec/bin/yt-dlp_linux',
+        './assets/icons/png/512.png',
+      ],
+    }[process.platform] || [
+      './node_modules/ffmpeg-static/ffmpeg.exe',
+      `./node_modules/ffprobe-static/bin/win32/${process.arch}/ffprobe.exe`,
+      './node_modules/yt-dlp-exec/bin/yt-dlp.exe',
+    ],
   },
   hooks: {
     // the control strip helper is built before running or packaging on macos.
@@ -72,8 +81,9 @@ module.exports = {
     packageAfterCopy: async (_config, buildPath, _electronVersion, platform) => {
       const rootDeps = ['ytdl-core', 'yt-dlp-exec'];
       const projectNM = path.resolve(__dirname, 'node_modules');
-      // the unpacked mac yt-dlp ships as an extra resource, not inside the app archive.
+      // the mac and linux yt-dlp builds ship as extra resources, not inside the app archive.
       const macYtDlpDir = path.join(projectNM, 'yt-dlp-exec', 'bin', 'yt-dlp_macos');
+      const linuxYtDlp = path.join(projectNM, 'yt-dlp-exec', 'bin', 'yt-dlp_linux');
 
       function resolvePkgDir(pkgName, searchFrom) {
         try {
@@ -95,7 +105,7 @@ module.exports = {
 
         const relFromNM = path.relative(projectNM, srcDir);
         const destDir = path.join(buildPath, 'node_modules', relFromNM);
-        copyDirSync(srcDir, destDir, (p) => p === macYtDlpDir);
+        copyDirSync(srcDir, destDir, (p) => p === macYtDlpDir || p === linuxYtDlp);
 
         try {
           const pkg = JSON.parse(fs.readFileSync(path.join(srcDir, 'package.json'), 'utf8'));
@@ -131,6 +141,8 @@ module.exports = {
         name: 'Downstream',
         setupIcon: 'assets/icons/win/icon.ico',
         iconUrl: 'file://' + path.join(__dirname, 'assets', 'icons', 'win', 'icon.ico'),
+        // shown in a small window while setup installs, drawn by scripts/installerGif/render.js.
+        loadingGif: 'assets/icons/win/installing.gif',
       },
     },
     {
@@ -147,7 +159,26 @@ module.exports = {
     },
     {
       name: '@electron-forge/maker-deb',
-      config: {},
+      config: {
+        options: {
+          name: 'downstream',
+          productName: 'Downstream',
+          genericName: 'Media Downloader and Player',
+          description: 'Save media from the internet, and play your local media library.',
+          productDescription: 'Downstream saves media from the internet and plays your local media library, with an EQ, even volume, visualizers and folders of your own.',
+          bin: 'downstream',
+          icon: 'assets/icons/png/512.png',
+          categories: ['AudioVideo', 'Audio', 'Video'],
+          section: 'sound',
+          maintainer: 'StrataBytes',
+          homepage: 'https://github.com/StrataBytes/Downstream',
+          // ubuntu 24.04 and newer need a small apparmor profile for electron's sandbox, written and removed by these.
+          scripts: {
+            postinst: 'scripts/linux/postinst',
+            postrm: 'scripts/linux/postrm',
+          },
+        },
+      },
     },
     {
       name: '@electron-forge/maker-rpm',

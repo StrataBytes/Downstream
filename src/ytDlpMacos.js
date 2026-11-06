@@ -94,6 +94,27 @@ async function installRelease(repo, tag, dir, { legacy = false } = {}) {
   return exe;
 }
 
+// downloads one single-file build from a release, checks it against the release checksums, and puts it at dest.
+// linux uses this for its self-contained yt-dlp_linux, which updates itself in place like the windows exe.
+async function installFile(repo, tag, asset, dest) {
+  const base = `https://github.com/${repo}/releases/download/${tag}`;
+  const sums = await fetchText(`${base}/${SUMS_ASSET}`);
+  const line = sums.split('\n').find((l) => l.trim().endsWith(` ${asset}`));
+  const expected = line && line.trim().split(/\s+/)[0];
+  if (!expected) throw new Error(`${SUMS_ASSET} for ${tag} has no ${asset}.`);
+
+  const download = `${dest}.download`;
+  await downloadToFile(`${base}/${asset}`, download);
+  try {
+    if (await sha256(download) !== expected) throw new Error(`${asset} for ${tag} failed its checksum.`);
+    fs.renameSync(download, dest);
+  } finally {
+    fs.rmSync(download, { force: true });
+  }
+  fs.chmodSync(dest, 0o755);
+  return dest;
+}
+
 // installed versions live in their own folders under root, with root/current naming the active one.
 // updating never touches the files of a version that may still be running.
 function createVersionStore({ root, bundledExe, repos, defaultTarget, legacy = false }) {
@@ -172,4 +193,4 @@ function createVersionStore({ root, bundledExe, repos, defaultTarget, legacy = f
   return { activeExe, prune, install, reinstall };
 }
 
-module.exports = { installRelease, createVersionStore, run, EXE_NAME };
+module.exports = { installRelease, installFile, createVersionStore, run, EXE_NAME };
