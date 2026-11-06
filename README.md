@@ -104,6 +104,7 @@ Patches and hotfixes are usually always insta-pushed as the latest version, as s
 
 ### Other Attributions
 > Thanks to @davidhurtado2000 for lending a hand on the v1 downloader prototype.
+
 > Generative Content: Downstream's current logo was built using OpenAI tools.
 
 ## License
