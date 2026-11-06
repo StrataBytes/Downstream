@@ -141,7 +141,7 @@ module.exports = {
         name: 'Downstream',
         setupIcon: 'assets/icons/win/icon.ico',
         iconUrl: 'file://' + path.join(__dirname, 'assets', 'icons', 'win', 'icon.ico'),
-        // shown in a small window while setup installs, drawn by scripts/installerGif/render.js.
+        // the loop shown in a small window while setup installs.
         loadingGif: 'assets/icons/win/installing.gif',
       },
     },

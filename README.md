@@ -1,11 +1,20 @@
+<p align="center">
+  <img src="assets/readme/banner.png" alt="Downstream. Play. Download. Customize. Enjoy." width="880">
+</p>
+
 # Downstream v3.0.0 (Late 2026)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)  
 **Author:** Stratabytes
 
 ## Introduction
 
-**Downstream** is a cross-platform media toolkit built with Electron. It combines a YouTube downloader with a local media player and library, all in one desktop app while being very robust and customizable. It uses libraries like `FFmpeg` and `yt-dlp` for fast and reliable downloads.
+**Downstream** is a cross-platform media toolkit built with Electron. It combines a local media player and library with a YouTube downloader, all in one desktop app while being very robust and customizable. It uses libraries like `FFmpeg` and `yt-dlp` for fast and reliable downloads.
 > **note:** Downstream is a tool and the app is designed for legal use cases. Please respect copyright laws and platform terms of service when downloading media. You are solely responsible for appropriate usage (;
+
+<p align="center">
+  <img src="assets/readme/home.jpg" alt="Downstream's home screen, with Golden Hour playing" width="49%">
+  <img src="assets/readme/player.jpg" alt="Downstream's player, playing Golden Hour over its album art" width="49%">
+</p>
 
 
 ## Download
@@ -30,17 +39,17 @@ On Linux, install it from the folder you downloaded it to with `sudo apt install
 
 ## Features
 
-#### The Downloader
-- **Search or Paste a Link**: Find videos right inside Downstream, including full playlists, radio and unlisted links.
-- **MP4 or MP3**: Pick the quality and format for one download, or for the whole queue at once.
-- **Save Where You Want**: Your Downloads folder, or straight into a Downstream folder the player picks up.
-- **Keeps Working**: Downstream updates yt-dlp in the background, so downloads carry on as YouTube changes.
-
 #### The Player
 - **Your Library**: Folders and mixtapes, with media you can add, move, delete and search without leaving the app.
 - **Sounds Right**: A 10-band EQ with presets, and even volume so nothing is suddenly loud or quiet.
 - **Looks Good**: Album art and video backgrounds, a visualizer, and three view modes, including Voyager, an ambient starfield. A perfect background player.
 - **Plays Nice With Your System**: Media keys and system controls on every platform, plus the Touch Bar on Macs that have one.
+
+#### The Downloader
+- **Search or Paste a Link**: Find videos right inside Downstream, including full playlists, radio and unlisted links.
+- **MP4 or MP3**: Pick the quality and format for one download, or for the whole queue at once.
+- **Save Where You Want**: Your Downloads folder, or straight into a Downstream folder the player picks up.
+- **Keeps Working**: Downstream updates yt-dlp in the background, so downloads carry on as YouTube changes.
 
 #### Everywhere
 - **Make It Yours**: A full settings window, plus a built-in Guide that shows how everything works.

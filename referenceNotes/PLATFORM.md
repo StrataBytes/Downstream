@@ -139,7 +139,13 @@ This one covers every platform. The system's own media controls get the song, it
 
 ### The Windows Installer Animation
 
-While the Windows installer works, it shows a small looping animation, `assets/icons/win/installing.gif`. It's drawn from `scripts/installerGif/installing.html` in Selawik, Microsoft's open stand-in for Segoe UI, so it matches the app. If you change the page, re-render it with `npx electron scripts/installerGif/render.js`, which grabs the font into `build/` and writes the GIF.
+While the Windows installer works, it shows a small looping animation, `assets/icons/win/installing.gif`. It's drawn in Selawik, Microsoft's open stand-in for Segoe UI, so it matches the app. `forge.config.js` hands it to the Squirrel maker as `loadingGif`.
+
+### The README Art
+
+The README's banner, `assets/readme/banner.png`, is drawn at twice its size so it stays sharp, with see-through corners for GitHub's light and dark themes.
+
+The two screenshots next to it, `home.jpg` and `player.jpg`, are taken from a made-up demo library rather than anyone's real music, so retake them the same way if the UI changes.
 
 
 ## Releasing Stuffs
